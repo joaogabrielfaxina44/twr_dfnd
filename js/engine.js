@@ -12,6 +12,7 @@ class Game {
         this.lastTime = 0;
         this.spawnTimer = 0;
         this.enemiesInWave = 10;
+        this.enemiesSpawned = 0;
         this.paused = true;
         this.isWaveInProgress = false;
 
@@ -248,11 +249,13 @@ class Game {
     }
 
     loop(time) {
-        if (this.paused) return;
         const delta = time - this.lastTime;
         this.lastTime = time;
 
-        this.update(delta);
+        if (!this.paused) {
+            this.update(delta);
+        }
+
         this.draw();
 
         if (this.hp > 0) {
