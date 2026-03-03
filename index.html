@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultra Castle Defenders | TD Game</title>
+    <link rel="stylesheet" href="css/index.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;800&display=swap" rel="stylesheet">
+    <style>
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .start-btn {
+            background: var(--accent);
+            color: #000;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            font-weight: 800;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 20px;
+        }
+
+        .start-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 20px var(--accent);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="game-container">
+        <!-- Overlay Inicial -->
+        <div id="start-screen">
+            <h1 style="font-size: 4rem; color: #fff; margin-bottom: 0;">ULTRA</h1>
+            <h2 style="font-size: 2rem; color: var(--accent); margin-top: -10px; letter-spacing: 5px;">CASTLE DEFENDERS
+            </h2>
+            <p style="color: #aaa; max-width: 400px; margin-top: 20px;">Protect the castle at all costs! Build towers,
+                use super powers, and survive the endless waves.</p>
+            <button class="start-btn" onclick="game.start()">INICIAR BATALHA</button>
+        </div>
+        <!-- Canvas de jogo principal -->
+        <canvas id="game-canvas" width="800" height="600"></canvas>
+
+        <!-- Painel de UI lateral -->
+        <aside id="ui-panel">
+            <h1 style="font-size: 1.2rem; margin-bottom: 10px; color: var(--accent);">ULTRA DEFENDERS</h1>
+
+            <section class="hud-item" id="hud-gold">
+                <div>
+                    <span class="hud-label">Ouro</span><br>
+                    <span class="hud-value" id="gold-value">500</span>
+                </div>
+                <div style="color: #ffd700; font-size: 1.5rem;">🪙</div>
+            </section>
+
+            <section class="hud-item" id="hud-hp">
+                <div>
+                    <span class="hud-label">Vida do Castelo</span><br>
+                    <span class="hud-value" id="hp-value" style="color: #ff4d4d;">100</span>
+                </div>
+                <div style="color: #ff4d4d; font-size: 1.5rem;">🏰</div>
+            </section>
+
+            <div id="towers-menu">
+                <span class="menu-title">Torres</span>
+                <div class="shop-item" id="shop-cannon" onclick="game.selectTowerType('cannon')">
+                    <div class="item-icon">🏹</div>
+                    <div class="item-info">
+                        <span class="item-name">Canhão Básico</span><br>
+                        <span class="item-cost">$100</span>
+                    </div>
+                </div>
+                <!-- Outras torres podem ser adicionadas aqui -->
+            </div>
+
+            <div id="skills-menu">
+                <span class="menu-title">Super Ataques</span>
+                <button class="skill-btn" id="skill-arrows" onclick="game.castSkill('arrows')">
+                    <span class="item-name">Chuva de Flechas</span>
+                    <span class="item-cost">$250</span>
+                    <div class="skill-cooldown" id="cooldown-arrows"></div>
+                </button>
+                <button class="skill-btn" id="skill-fire" onclick="game.castSkill('fire')">
+                    <span class="item-name">Bomba de Fogo</span>
+                    <span class="item-cost">$500</span>
+                    <div class="skill-cooldown" id="cooldown-fire"></div>
+                </button>
+                <button class="skill-btn" id="skill-ice" onclick="game.castSkill('ice')">
+                    <span class="item-name">Tempestade Gelo</span>
+                    <span class="item-cost">$600</span>
+                    <div class="skill-cooldown" id="cooldown-ice"></div>
+                </button>
+                <button class="skill-btn" id="skill-lightning" onclick="game.castSkill('lightning')">
+                    <span class="item-name">Chuva Raios</span>
+                    <span class="item-cost">$1000</span>
+                    <div class="skill-cooldown" id="cooldown-lightning"></div>
+                </button>
+                <button class="skill-btn" id="skill-annihilation" onclick="game.castSkill('annihilation')">
+                    <span class="item-name">Aniquilação</span>
+                    <span class="item-cost">$2500</span>
+                    <div class="skill-cooldown" id="cooldown-annihilation"></div>
+                </button>
+            </div>
+
+            <div class="wave-info" id="wave-display">
+                <span class="hud-label" style="display: block;">ONDA ATUAL</span>
+                <span id="wave-number">1</span>
+            </div>
+        </aside>
+
+        <!-- Overlay de Upgrade/Menu -->
+        <div id="upgrade-overlay"
+            style="display: none; position: absolute; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px; border: 1px solid var(--accent); z-index: 100;">
+            <div id="upgrade-info" style="font-size: 0.8rem; margin-bottom: 5px;">Nível: 1 | Dano: 10</div>
+            <button onclick="game.upgradeSelectedTower()"
+                style="background: var(--accent); color: #000; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; font-weight: bold;">UPGRADE
+                ($150)</button>
+            <button onclick="game.sellSelectedTower()"
+                style="background: #ff4d4d; color: #fff; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; margin-left: 5px;">VENDER</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/engine.js"></script>
+</body>
+
+</html>
