@@ -40,6 +40,24 @@ class Game {
             annihilation: { cost: 2500, cooldown: 45000, lastUsed: 0 }
         };
 
+        this.towerLimits = {
+            cannon: 0,
+            fire: 0,
+            ice: 0,
+            lightning: 0,
+            magic: 0,
+            poison: 0
+        };
+
+        this.towerData = {
+            cannon: { cost: 100, name: "Canhão Básico", icon: "🏹", color: "#8a2be2" },
+            fire: { cost: 200, name: "Torre de Fogo", icon: "🔥", color: "#ff4500" },
+            ice: { cost: 150, name: "Torre de Gelo", icon: "❄️", color: "#00bfff" },
+            lightning: { cost: 300, name: "Torre de Raio", icon: "⚡", color: "#ffff00" },
+            magic: { cost: 400, name: "Torre Mágica", icon: "✨", color: "#da70d6" },
+            poison: { cost: 250, name: "Torre Veneno", icon: "🧪", color: "#32cd32" }
+        };
+
         this.init();
     }
 
@@ -115,14 +133,22 @@ class Game {
         }
 
         // Place new tower
-        if (this.selectedTowerType && this.gold >= 100) {
-            // Check if on path
-            if (this.isNearPath(x, y, 40)) return;
+        if (this.selectedTowerType) {
+            const data = this.towerData[this.selectedTowerType];
+            if (this.gold >= data.cost) {
+                if (this.towerLimits[this.selectedTowerType] >= 5) {
+                    this.announce("LIMITE ATINGIDO", "Máximo 5 torres deste tipo!");
+                    return;
+                }
+                // Check if on path
+                if (this.isNearPath(x, y, 40)) return;
 
-            this.towers.push(new Tower(x, y, this));
-            this.gold -= 100;
-            this.selectedTowerType = null;
-            this.updateHUD();
+                this.towers.push(new Tower(x, y, this, this.selectedTowerType));
+                this.gold -= data.cost;
+                this.towerLimits[this.selectedTowerType]++;
+                this.selectedTowerType = null;
+                this.updateHUD();
+            }
         }
     }
 
@@ -187,10 +213,20 @@ class Game {
 
     sellSelectedTower() {
         if (!this.selectedActiveTower) return;
-        this.gold += 50; // Simple sell back
-        this.towers = this.towers.filter(t => t !== this.selectedActiveTower);
+        const tower = this.selectedActiveTower;
+        this.gold += Math.floor(this.towerData[tower.type].cost * 0.5);
+        this.towerLimits[tower.type]--;
+        this.towers = this.towers.filter(t => t !== tower);
         this.updateHUD();
         document.getElementById('upgrade-overlay').style.display = 'none';
+    }
+
+    announce(main, sub) {
+        const el = document.getElementById('announcement');
+        document.getElementById('announcement-main').innerText = main;
+        document.getElementById('announcement-sub').innerText = sub;
+        el.style.opacity = '1';
+        setTimeout(() => el.style.opacity = '0', 3000);
     }
 
     castSkill(id) {
@@ -268,15 +304,25 @@ class Game {
     update(delta) {
         // Wave management
         if (this.enemies.length === 0 && this.enemiesSpawned >= this.enemiesInWave) {
+            const reward = 100 + (this.wave * 50);
+            this.gold += reward;
             this.wave++;
             this.enemiesSpawned = 0;
-            this.enemiesInWave = Math.floor(10 * Math.pow(1.1, this.wave));
+            this.enemiesInWave = Math.floor(10 * Math.pow(1.15, this.wave));
+            this.announce("ONDA CONCLUÍDA", `Próxima: Onda ${this.wave} | Recompensa: $${reward}`);
             this.updateHUD();
         }
 
         this.spawnTimer += delta;
         if (this.spawnTimer > 1000 && this.enemiesSpawned < this.enemiesInWave) {
-            this.enemies.push(new Enemy(this.wave, this));
+            let type = 'normal';
+            const r = Math.random();
+            if (this.wave >= 2 && r > 0.8) type = 'fast';
+            if (this.wave >= 4 && r > 0.9) type = 'tank';
+            if (this.wave >= 6 && r > 0.95) type = 'spawn';
+            if (this.wave >= 8 && r > 0.98) type = 'shielded';
+
+            this.enemies.push(new Enemy(this.wave, this, type));
             this.enemiesSpawned++;
             this.spawnTimer = 0;
         }
@@ -291,6 +337,17 @@ class Game {
                 } else {
                     this.gold += e.bounty;
                     this.updateHUD();
+                    // Spawn logic
+                    if (e.type === 'spawn') {
+                        for (let i = 0; i < 2; i++) {
+                            const sub = new Enemy(this.wave, this, 'normal');
+                            sub.x = e.x;
+                            sub.y = e.y;
+                            sub.hp = sub.maxHp * 0.5;
+                            sub.pathIndex = e.pathIndex;
+                            this.enemies.push(sub);
+                        }
+                    }
                 }
                 this.enemies.splice(idx, 1);
             }
@@ -306,9 +363,6 @@ class Game {
             p.update(delta);
             if (p.life <= 0) this.particles.splice(idx, 1);
         });
-
-        // Cooldowns HUD
-        if (Math.random() > 0.95) this.updateHUD();
     }
 
     draw() {
@@ -358,6 +412,14 @@ class Game {
         ctx.arc(this.path[this.path.length - 1].x, this.path[this.path.length - 1].y, 30, 0, Math.PI * 2);
         ctx.fill();
         ctx.shadowBlur = 0;
+
+        // Wave Counter on Canvas
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(10, 10, 120, 40);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 20px Outfit';
+        ctx.textAlign = 'left';
+        ctx.fillText(`ONDA: ${this.wave}`, 20, 37);
     }
 
     gameOver() {
@@ -374,24 +436,60 @@ class Game {
 }
 
 class Enemy {
-    constructor(wave, game) {
+    constructor(wave, game, type = 'normal') {
         this.game = game;
+        this.type = type;
         this.pathIndex = 0;
         this.x = game.path[0].x;
         this.y = game.path[0].y;
         this.baseHp = 20;
-        // HP = BaseHP * (1.15)^(W-1)
-        this.maxHp = this.baseHp * Math.pow(1.15, wave - 1);
+
+        let hpMult = 1;
+        let speedMult = 1;
+        this.radius = 12;
+
+        switch (type) {
+            case 'fast':
+                hpMult = 0.6;
+                speedMult = 2;
+                this.color = '#ffff00';
+                break;
+            case 'tank':
+                hpMult = 3;
+                speedMult = 0.6;
+                this.radius = 18;
+                this.color = '#8b4513';
+                break;
+            case 'spawn':
+                hpMult = 1.5;
+                speedMult = 1;
+                this.color = '#9400d3';
+                break;
+            case 'shielded':
+                hpMult = 1;
+                speedMult = 0.8;
+                this.shield = 5;
+                this.color = '#4682b4';
+                break;
+            default:
+                this.color = '#ff4444';
+        }
+
+        this.maxHp = this.baseHp * Math.pow(1.15, wave - 1) * hpMult;
         this.hp = this.maxHp;
-        this.speed = 1.2 + (Math.random() * 0.5);
+        this.speed = (1.2 + (Math.random() * 0.5)) * speedMult;
         this.tempSpeed = this.speed;
         this.slowTimer = 0;
         this.burnTimer = 0;
+        this.burnTicks = 0;
         this.burnDamage = 0;
+        this.poisonTimer = 0;
+        this.poisonTicks = 0;
+        this.poisonDamage = 0;
+        this.lastTickTime = 0;
         this.bounty = Math.floor(10 * Math.pow(1.05, wave - 1));
         this.dead = false;
         this.reachedEnd = false;
-        this.radius = 12;
     }
 
     update(delta) {
@@ -400,10 +498,22 @@ class Enemy {
             if (this.slowTimer <= 0) this.tempSpeed = this.speed;
         }
 
-        if (this.burnTimer > 0) {
-            this.burnTimer -= delta;
-            this.takeDamage(this.burnDamage * (delta / 1000));
+        this.lastTickTime += delta;
+        if (this.lastTickTime >= 1000) {
+            if (this.burnTicks > 0) {
+                this.takeDamage(this.burnDamage, true);
+                this.burnTicks--;
+            }
+            if (this.poisonTicks > 0) {
+                this.takeDamage(this.poisonDamage, true);
+                this.poisonTicks--;
+            }
+            this.lastTickTime = 0;
         }
+
+        // Visual effects timers (for coloring)
+        if (this.burnTimer > 0) this.burnTimer -= delta;
+        if (this.poisonTimer > 0) this.poisonTimer -= delta;
 
         const target = this.game.path[this.pathIndex + 1];
         if (!target) {
@@ -429,7 +539,11 @@ class Enemy {
         if (this.hp <= 0) this.dead = true;
     }
 
-    takeDamage(dmg) {
+    takeDamage(dmg, ignoreShield = false) {
+        if (!ignoreShield && this.shield > 0) {
+            this.shield--;
+            return;
+        }
         this.hp -= dmg;
         if (this.hp <= 0) this.dead = true;
     }
@@ -440,17 +554,34 @@ class Enemy {
     }
 
     burn(dmg) {
-        this.burnTimer = 3000;
+        this.burnTimer = 4000;
+        this.burnTicks = 4;
         this.burnDamage = dmg;
     }
 
+    poison(dmg) {
+        this.poisonTimer = 5000;
+        this.poisonTicks = 5;
+        this.poisonDamage = dmg;
+    }
+
     draw(ctx) {
-        ctx.fillStyle = this.slowTimer > 0 ? '#00ffff' : '#ff4444';
+        ctx.fillStyle = this.color;
+        if (this.slowTimer > 0) ctx.fillStyle = '#00ffff';
         if (this.burnTimer > 0) ctx.fillStyle = '#ffa500';
+        if (this.poisonTimer > 0) ctx.fillStyle = '#32cd32';
 
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.fill();
+
+        if (this.shield > 0) {
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius + 3, 0, Math.PI * 2);
+            ctx.stroke();
+        }
 
         // HP bar
         const barWidth = 20;
@@ -462,27 +593,61 @@ class Enemy {
 }
 
 class Tower {
-    constructor(x, y, game) {
+    constructor(x, y, game, type = 'cannon') {
         this.x = x;
         this.y = y;
         this.game = game;
+        this.type = type;
         this.level = 1;
-        this.range = 150;
-        this.damage = 10;
-        this.attackSpeed = 1000;
         this.timer = 0;
-        this.color = '#8a2be2';
+
+        const data = game.towerData[type];
+        this.color = data.color;
+
+        switch (type) {
+            case 'cannon':
+                this.range = 150;
+                this.damage = 10;
+                this.attackSpeed = 1000;
+                break;
+            case 'fire':
+                this.range = 120;
+                this.damage = 5;
+                this.attackSpeed = 1200;
+                break;
+            case 'ice':
+                this.range = 130;
+                this.damage = 3;
+                this.attackSpeed = 1500;
+                break;
+            case 'lightning':
+                this.range = 200;
+                this.damage = 8;
+                this.attackSpeed = 600;
+                break;
+            case 'magic':
+                this.range = 160;
+                this.damage = 15;
+                this.attackSpeed = 2000;
+                break;
+            case 'poison':
+                this.range = 140;
+                this.damage = 4;
+                this.attackSpeed = 1300;
+                break;
+        }
     }
 
     getUpgradeCost() {
-        return Math.floor(100 * Math.pow(1.8, this.level));
+        const baseCost = this.game.towerData[this.type].cost;
+        return Math.floor(baseCost * Math.pow(1.8, this.level));
     }
 
     upgrade() {
         this.level++;
-        this.damage *= 1.5;
-        this.range += 20;
-        if (this.level === 7) this.color = '#ffd700'; // Gold for max level
+        this.damage *= 1.4;
+        this.range += 15;
+        this.attackSpeed *= 0.9;
     }
 
     update(delta) {
@@ -490,7 +655,7 @@ class Tower {
         if (this.timer >= this.attackSpeed) {
             const target = this.findTarget();
             if (target) {
-                this.game.projectiles.push(new Projectile(this.x, this.y, target, this.damage));
+                this.game.projectiles.push(new Projectile(this.x, this.y, target, this.damage, this.type, this.game));
                 this.timer = 0;
             }
         }
@@ -504,58 +669,107 @@ class Tower {
 
     draw(ctx) {
         ctx.fillStyle = this.color;
+        ctx.shadowBlur = this.level * 2;
+        ctx.shadowColor = this.color;
 
         // Base
-        ctx.fillRect(this.x - 15, this.y - 15, 30, 30);
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 18, 0, Math.PI * 2);
+        ctx.fill();
 
-        // Cannon
+        // Cannon head
         ctx.fillStyle = '#333';
-        ctx.fillRect(this.x - 5, this.y - 25, 10, 20);
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 10, 0, Math.PI * 2);
+        ctx.fill();
 
-        if (this.level === 7) {
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = 'gold';
-            ctx.strokeStyle = 'gold';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(this.x - 18, this.y - 18, 36, 36);
-            ctx.shadowBlur = 0;
-        }
+        ctx.shadowBlur = 0;
+
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(this.level, this.x, this.y + 4);
     }
 }
 
 class Projectile {
-    constructor(x, y, target, damage) {
+    constructor(x, y, target, damage, type, game) {
         this.x = x;
         this.y = y;
         this.target = target;
         this.damage = damage;
-        this.speed = 5;
+        this.type = type;
+        this.game = game;
+        this.speed = 7;
         this.dead = false;
+        this.piercing = (type === 'magic');
+        this.hitEnemies = new Set();
     }
 
     update(delta) {
-        if (!this.target || this.target.dead) {
-            this.dead = true;
-            return;
-        }
+        if (this.piercing) {
+            // Move in straight line towards initial target direction
+            if (!this.vx) {
+                const dx = this.target.x - this.x;
+                const dy = this.target.y - this.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                this.vx = (dx / dist) * this.speed;
+                this.vy = (dy / dist) * this.speed;
+            }
+            this.x += this.vx;
+            this.y += this.vy;
 
-        const dx = this.target.x - this.x;
-        const dy = this.target.y - this.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+            // Check collisions with all enemies
+            this.game.enemies.forEach(e => {
+                if (!this.hitEnemies.has(e)) {
+                    const d = Math.sqrt((e.x - this.x) ** 2 + (e.y - this.y) ** 2);
+                    if (d < e.radius + 5) {
+                        this.applyEffects(e);
+                        this.hitEnemies.add(e);
+                    }
+                }
+            });
 
-        if (dist < 10) {
-            this.target.takeDamage(this.damage);
-            this.dead = true;
+            if (this.x < 0 || this.x > 800 || this.y < 0 || this.y > 600) this.dead = true;
         } else {
-            this.x += (dx / dist) * this.speed;
-            this.y += (dy / dist) * this.speed;
+            if (!this.target || this.target.dead) {
+                this.dead = true;
+                return;
+            }
+
+            const dx = this.target.x - this.x;
+            const dy = this.target.y - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < 10) {
+                this.applyEffects(this.target);
+                this.dead = true;
+            } else {
+                this.x += (dx / dist) * this.speed;
+                this.y += (dy / dist) * this.speed;
+            }
+        }
+    }
+
+    applyEffects(target) {
+        target.takeDamage(this.damage);
+        switch (this.type) {
+            case 'fire':
+                target.burn(this.damage * 0.5);
+                break;
+            case 'ice':
+                target.slow(0.4, 5000); // 5000ms = 5s
+                break;
+            case 'poison':
+                target.poison(this.damage * 0.3);
+                break;
         }
     }
 
     draw(ctx) {
-        ctx.fillStyle = '#fff';
+        ctx.fillStyle = this.game.towerData[this.type].color;
         ctx.beginPath();
-        ctx.arc(this.x, this.y, 4, 0, Math.PI * 2);
+        ctx.arc(this.x, this.y, 5, 0, Math.PI * 2);
         ctx.fill();
     }
 }

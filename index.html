@@ -79,7 +79,7 @@
             </section>
 
             <div id="towers-menu">
-                <span class="menu-title">Torres</span>
+                <span class="menu-title">Torres (Limite 5 de cada)</span>
                 <div class="shop-item" id="shop-cannon" onclick="game.selectTowerType('cannon')">
                     <div class="item-icon">🏹</div>
                     <div class="item-info">
@@ -87,7 +87,41 @@
                         <span class="item-cost">$100</span>
                     </div>
                 </div>
-                <!-- Outras torres podem ser adicionadas aqui -->
+                <div class="shop-item" id="shop-fire" onclick="game.selectTowerType('fire')">
+                    <div class="item-icon">🔥</div>
+                    <div class="item-info">
+                        <span class="item-name">Torre de Fogo</span><br>
+                        <span class="item-cost">$200</span>
+                    </div>
+                </div>
+                <div class="shop-item" id="shop-ice" onclick="game.selectTowerType('ice')">
+                    <div class="item-icon">❄️</div>
+                    <div class="item-info">
+                        <span class="item-name">Torre de Gelo</span><br>
+                        <span class="item-cost">$150</span>
+                    </div>
+                </div>
+                <div class="shop-item" id="shop-lightning" onclick="game.selectTowerType('lightning')">
+                    <div class="item-icon">⚡</div>
+                    <div class="item-info">
+                        <span class="item-name">Torre de Raio</span><br>
+                        <span class="item-cost">$300</span>
+                    </div>
+                </div>
+                <div class="shop-item" id="shop-magic" onclick="game.selectTowerType('magic')">
+                    <div class="item-icon">✨</div>
+                    <div class="item-info">
+                        <span class="item-name">Torre Mágica</span><br>
+                        <span class="item-cost">$400</span>
+                    </div>
+                </div>
+                <div class="shop-item" id="shop-poison" onclick="game.selectTowerType('poison')">
+                    <div class="item-icon">🧪</div>
+                    <div class="item-info">
+                        <span class="item-name">Torre Veneno</span><br>
+                        <span class="item-cost">$250</span>
+                    </div>
+                </div>
             </div>
 
             <div id="skills-menu">
@@ -124,6 +158,12 @@
                 <span id="wave-number">1</span>
             </div>
         </aside>
+
+        <!-- Container de Anúncios -->
+        <div id="announcement">
+            <h2 class="announcement-text" id="announcement-main">PRÓXIMA ONDA</h2>
+            <p class="announcement-sub" id="announcement-sub">+150 Ouro de Recompensa!</p>
+        </div>
 
         <!-- Overlay de Upgrade/Menu -->
         <div id="upgrade-overlay"

@@ -83,11 +83,58 @@ body {
     color: var(--accent);
 }
 
-#towers-menu,
+#towers-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 250px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+#towers-menu::-webkit-scrollbar {
+    width: 4px;
+}
+
+#towers-menu::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+#towers-menu::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 10px;
+}
+
 #skills-menu {
     display: flex;
     flex-direction: column;
     gap: 10px;
+}
+
+#announcement {
+    position: absolute;
+    top: 50%;
+    left: 400px;
+    transform: translate(-50%, -50%);
+    z-index: 500;
+    pointer-events: none;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.5s;
+}
+
+.announcement-text {
+    font-size: 3rem;
+    font-weight: 800;
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+    margin: 0;
+}
+
+.announcement-sub {
+    font-size: 1.2rem;
+    color: #ffd700;
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
 }
 
 .menu-title {
