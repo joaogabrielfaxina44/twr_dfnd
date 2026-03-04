@@ -83,28 +83,29 @@ body {
     color: var(--accent);
 }
 
-#towers-menu {
+.ui-scroll-area {
+    flex: 1;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    max-height: 250px;
-    overflow-y: auto;
-    padding-right: 5px;
+    gap: 20px;
+    padding-right: 10px;
 }
 
-#towers-menu::-webkit-scrollbar {
-    width: 4px;
+.ui-scroll-area::-webkit-scrollbar {
+    width: 6px;
 }
 
-#towers-menu::-webkit-scrollbar-track {
+.ui-scroll-area::-webkit-scrollbar-track {
     background: rgba(255, 255, 255, 0.05);
 }
 
-#towers-menu::-webkit-scrollbar-thumb {
+.ui-scroll-area::-webkit-scrollbar-thumb {
     background: var(--primary);
     border-radius: 10px;
 }
 
+#towers-menu,
 #skills-menu {
     display: flex;
     flex-direction: column;
