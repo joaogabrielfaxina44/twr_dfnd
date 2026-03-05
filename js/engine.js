@@ -14,9 +14,7 @@ class Game {
         this.enemiesInWave = 10;
         this.enemiesSpawned = 0;
         this.paused = true;
-        this.isWaveInProgress = false;
 
-        // Pathing coordinates (Point A to B)
         this.path = [
             { x: -20, y: 300 },
             { x: 100, y: 300 },
@@ -40,15 +38,7 @@ class Game {
             annihilation: { cost: 2500, cooldown: 45000, lastUsed: 0 }
         };
 
-        this.towerLimits = {
-            cannon: 0,
-            fire: 0,
-            ice: 0,
-            lightning: 0,
-            magic: 0,
-            poison: 0
-        };
-
+        this.towerLimits = { cannon: 0, fire: 0, ice: 0, lightning: 0, magic: 0, poison: 0 };
         this.towerData = {
             cannon: { cost: 100, name: "Canhão Básico", icon: "🏹", color: "#8a2be2" },
             fire: { cost: 200, name: "Torre de Fogo", icon: "🔥", color: "#ff4500" },
@@ -68,58 +58,27 @@ class Game {
         this.updateHUD();
     }
 
-    start() {
-        this.paused = false;
-        document.getElementById('start-screen').style.display = 'none';
-        this.lastTime = performance.now();
-        requestAnimationFrame((time) => this.loop(time));
-    }
-
     setupBackground() {
         this.bgCanvas = document.createElement('canvas');
         this.bgCanvas.width = 800;
         this.bgCanvas.height = 600;
         const bctx = this.bgCanvas.getContext('2d');
 
-        // Draw Grass/Forest Ground
-        bctx.fillStyle = '#2e7d32'; // Dark Forest Green
+        // Forest Grass
+        bctx.fillStyle = '#2e7d32';
         bctx.fillRect(0, 0, 800, 600);
-
-        // Add noise/texture to grass
         for (let i = 0; i < 2000; i++) {
-            const x = Math.random() * 800;
-            const y = Math.random() * 600;
-            const size = 1 + Math.random() * 2;
             bctx.fillStyle = Math.random() > 0.5 ? '#388e3c' : '#2b6a2d';
-            bctx.fillRect(x, y, size, size);
+            bctx.fillRect(Math.random() * 800, Math.random() * 600, 2, 2);
         }
-
-        // Add some "Pixel Art" grass blades
         for (let i = 0; i < 400; i++) {
-            const x = Math.random() * 800;
-            const y = Math.random() * 600;
             bctx.fillStyle = '#4caf50';
+            const x = Math.random() * 800, y = Math.random() * 600;
             bctx.fillRect(x, y, 2, 4);
-            bctx.fillRect(x + 1, y + 1, 1, 3);
         }
 
-        // Add occasional stones or flowers
-        for (let i = 0; i < 50; i++) {
-            const x = Math.random() * 800;
-            const y = Math.random() * 600;
-            if (Math.random() > 0.5) {
-                bctx.fillStyle = '#9e9e9e'; // Stone
-                bctx.beginPath();
-                bctx.arc(x, y, 2 + Math.random() * 3, 0, Math.PI * 2);
-                bctx.fill();
-            } else {
-                bctx.fillStyle = '#ffeb3b'; // Flower
-                bctx.fillRect(x, y, 3, 3);
-            }
-        }
-
-        // Draw THE PATH on the background canvas for optimization
-        bctx.strokeStyle = '#795548'; // Dirt Brown
+        // Dirt Path
+        bctx.strokeStyle = '#795548';
         bctx.lineWidth = 44;
         bctx.lineCap = 'round';
         bctx.lineJoin = 'round';
@@ -128,29 +87,31 @@ class Game {
         this.path.forEach(p => bctx.lineTo(p.x, p.y));
         bctx.stroke();
 
-        // Path Inner Highlight (Texture)
         bctx.strokeStyle = '#8d6e63';
         bctx.lineWidth = 36;
         bctx.stroke();
 
-        // Add stones and wear to the path
-        for (let i = 0; i < 1500; i++) {
-            const px = Math.random() * 800;
-            const py = Math.random() * 600;
-            // Only draw if near the path
-            if (this.isNearPath(px, py, 22)) {
+        // Path stones
+        for (let i = 0; i < 1000; i++) {
+            const x = Math.random() * 800, y = Math.random() * 600;
+            if (this.isNearPath(x, y, 22)) {
                 bctx.fillStyle = Math.random() > 0.7 ? '#5d4037' : '#9c7e6e';
-                bctx.fillRect(px, py, 2, 2);
+                bctx.fillRect(x, y, 2, 2);
             }
         }
+    }
+
+    start() {
+        this.paused = false;
+        document.getElementById('start-screen').style.display = 'none';
+        this.lastTime = performance.now();
+        requestAnimationFrame((time) => this.loop(time));
     }
 
     updateHUD() {
         document.getElementById('gold-value').innerText = Math.floor(this.gold);
         document.getElementById('hp-value').innerText = Math.max(0, this.hp);
         document.getElementById('wave-number').innerText = this.wave;
-
-        // Update skill button states (disabled if not enough gold or on cooldown)
         Object.keys(this.skills).forEach(id => {
             const skill = this.skills[id];
             const btn = document.getElementById('skill-' + id);
@@ -158,44 +119,23 @@ class Game {
             const elapsed = now - (skill.lastUsed || 0);
             const isCooldown = elapsed < skill.cooldown;
             btn.disabled = this.gold < skill.cost || isCooldown;
-
-            // Update visual cooldown
             const cooldownEl = document.getElementById('cooldown-' + id);
-            if (isCooldown) {
-                const percent = 100 - (elapsed / skill.cooldown * 100);
-                cooldownEl.style.height = percent + '%';
-            } else {
-                cooldownEl.style.height = '0%';
-            }
+            if (isCooldown) cooldownEl.style.height = (100 - (elapsed / skill.cooldown * 100)) + '%';
+            else cooldownEl.style.height = '0%';
         });
     }
 
     handleMouseMove(e) {
         const rect = this.canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-
-        if (this.selectedTowerType) {
-            this.towerToPlace = { x, y, type: this.selectedTowerType };
-        } else {
-            this.towerToPlace = null;
-        }
+        this.towerToPlace = this.selectedTowerType ? { x: e.clientX - rect.left, y: e.clientY - rect.top, type: this.selectedTowerType } : null;
     }
 
     handleMouseDown(e) {
         const rect = this.canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const x = e.clientX - rect.left, y = e.clientY - rect.top;
+        document.getElementById('upgrade-overlay').style.display = 'none';
 
-        // Overlay handling
-        const overlay = document.getElementById('upgrade-overlay');
-        overlay.style.display = 'none';
-
-        // Check if clicking existing tower
-        const clickedTower = this.towers.find(t =>
-            Math.sqrt((t.x - x) ** 2 + (t.y - y) ** 2) < 25
-        );
-
+        const clickedTower = this.towers.find(t => Math.sqrt((t.x - x) ** 2 + (t.y - y) ** 2) < 25);
         if (clickedTower) {
             this.selectedActiveTower = clickedTower;
             this.showUpgradeMenu(e.clientX, e.clientY);
@@ -203,79 +143,52 @@ class Game {
             return;
         }
 
-        // Place new tower
         if (this.selectedTowerType) {
             const data = this.towerData[this.selectedTowerType];
-            if (this.gold >= data.cost) {
-                if (this.towerLimits[this.selectedTowerType] >= 5) {
-                    this.announce("LIMITE ATINGIDO", "Máximo 5 torres deste tipo!");
-                    return;
-                }
-                // Check if on path
-                if (this.isNearPath(x, y, 40)) return;
-
+            if (this.gold >= data.cost && this.towerLimits[this.selectedTowerType] < 5 && !this.isNearPath(x, y, 40)) {
                 this.towers.push(new Tower(x, y, this, this.selectedTowerType));
                 this.gold -= data.cost;
                 this.towerLimits[this.selectedTowerType]++;
                 this.selectedTowerType = null;
                 this.updateHUD();
+            } else if (this.towerLimits[this.selectedTowerType] >= 5) {
+                this.announce("LIMITE ATINGIDO", "Máximo 5 torres deste tipo!");
             }
         }
     }
 
     isNearPath(x, y, dist) {
         for (let i = 0; i < this.path.length - 1; i++) {
-            const p1 = this.path[i];
-            const p2 = this.path[i + 1];
-
-            // Distance from point to line segment
+            const p1 = this.path[i], p2 = this.path[i + 1];
             const L2 = (p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2;
             if (L2 === 0) continue;
-            let t = ((x - p1.x) * (p2.x - p1.x) + (y - p1.y) * (p2.y - p1.y)) / L2;
-            t = Math.max(0, Math.min(1, t));
-            const projX = p1.x + t * (p2.x - p1.x);
-            const projY = p1.y + t * (p2.y - p1.y);
-            const d = Math.sqrt((x - projX) ** 2 + (y - projY) ** 2);
-            if (d < dist) return true;
+            let t = Math.max(0, Math.min(1, ((x - p1.x) * (p2.x - p1.x) + (y - p1.y) * (p2.y - p1.y)) / L2));
+            if (Math.sqrt((x - (p1.x + t * (p2.x - p1.x))) ** 2 + (y - (p1.y + t * (p2.y - p1.y))) ** 2) < dist) return true;
         }
         return false;
     }
 
     selectTowerType(type) {
         this.selectedTowerType = type;
-        // Visual feedback
         document.querySelectorAll('.shop-item').forEach(i => i.classList.remove('selected'));
         if (type) document.getElementById('shop-' + type).classList.add('selected');
     }
 
     showUpgradeMenu(screenX, screenY) {
-        const overlay = document.getElementById('upgrade-overlay');
-        const info = document.getElementById('upgrade-info');
+        const overlay = document.getElementById('upgrade-overlay'), info = document.getElementById('upgrade-info');
         const tower = this.selectedActiveTower;
-
         overlay.style.display = 'block';
         overlay.style.left = screenX + 'px';
         overlay.style.top = (screenY - 60) + 'px';
-
-        const nextLevel = tower.level + 1;
-        const upgradeCost = tower.getUpgradeCost();
-
-        info.innerHTML = `Nível: ${tower.level}/7<br>Next: +${tower.damage * 0.2} Dano | +10 Alcance`;
+        info.innerHTML = `Nível: ${tower.level}/7<br>Next: +${(tower.damage * 0.4).toFixed(1)} Dano`;
         const btn = overlay.querySelector('button');
-        if (tower.level >= 7) {
-            btn.innerText = "MAX NÍVEL";
-            btn.disabled = true;
-        } else {
-            btn.innerText = `UPGRADE ($${upgradeCost})`;
-            btn.disabled = false;
-        }
+        btn.innerText = tower.level >= 7 ? "MAX" : `UPGRADE ($${tower.getUpgradeCost()})`;
+        btn.disabled = tower.level >= 7;
     }
 
     upgradeSelectedTower() {
-        if (!this.selectedActiveTower) return;
-        const cost = this.selectedActiveTower.getUpgradeCost();
-        if (this.gold >= cost && this.selectedActiveTower.level < 7) {
-            this.gold -= cost;
+        if (this.selectedActiveTower && this.gold >= this.selectedActiveTower.getUpgradeCost() && this.selectedActiveTower.level < 7) {
+            this.gold -= this.selectedActiveTower.getUpgradeCost();
             this.selectedActiveTower.upgrade();
             this.updateHUD();
             document.getElementById('upgrade-overlay').style.display = 'none';
@@ -283,13 +196,13 @@ class Game {
     }
 
     sellSelectedTower() {
-        if (!this.selectedActiveTower) return;
-        const tower = this.selectedActiveTower;
-        this.gold += Math.floor(this.towerData[tower.type].cost * 0.5);
-        this.towerLimits[tower.type]--;
-        this.towers = this.towers.filter(t => t !== tower);
-        this.updateHUD();
-        document.getElementById('upgrade-overlay').style.display = 'none';
+        if (this.selectedActiveTower) {
+            this.gold += Math.floor(this.towerData[this.selectedActiveTower.type].cost * 0.5);
+            this.towerLimits[this.selectedActiveTower.type]--;
+            this.towers = this.towers.filter(t => t !== this.selectedActiveTower);
+            this.updateHUD();
+            document.getElementById('upgrade-overlay').style.display = 'none';
+        }
     }
 
     announce(main, sub) {
@@ -302,83 +215,37 @@ class Game {
 
     castSkill(id) {
         const skill = this.skills[id];
-        if (this.gold < skill.cost) return;
-
-        const now = Date.now();
-        if (now - (skill.lastUsed || 0) < skill.cooldown) return;
-
+        if (this.gold < skill.cost || Date.now() - (skill.lastUsed || 0) < skill.cooldown) return;
         this.gold -= skill.cost;
-        skill.lastUsed = now;
+        skill.lastUsed = Date.now();
 
-        // Apply skill logic
         switch (id) {
-            case 'arrows':
-                this.enemies.forEach(e => e.takeDamage(10));
-                this.createMagicEffect('purple', 50);
-                break;
-            case 'fire':
-                this.enemies.forEach(e => {
-                    e.takeDamage(15);
-                    e.burn(5);
-                });
-                this.createMagicEffect('orange', 80);
-                break;
-            case 'ice':
-                this.enemies.forEach(e => {
-                    e.takeDamage(5);
-                    e.slow(0.5, 5000); // 50% slow for 5s
-                });
-                this.createMagicEffect('cyan', 60);
-                break;
-            case 'lightning':
-                this.enemies.forEach(e => {
-                    if (Math.random() > 0.5) e.takeDamage(100);
-                });
-                this.createMagicEffect('yellow', 100);
-                break;
-            case 'annihilation':
-                this.enemies.forEach(e => e.takeDamage(e.hp * 0.5));
-                this.createMagicEffect('white', 200);
-                break;
+            case 'arrows': this.enemies.forEach(e => e.takeDamage(10)); this.createMagicEffect('purple', 50); break;
+            case 'fire': this.enemies.forEach(e => { e.takeDamage(15); e.burn(5); }); this.createMagicEffect('orange', 80); break;
+            case 'ice': this.enemies.forEach(e => { e.takeDamage(5); e.slow(0.5, 5000); }); this.createMagicEffect('cyan', 60); break;
+            case 'lightning': this.enemies.forEach(e => { if (Math.random() > 0.5) e.takeDamage(100); }); this.createMagicEffect('yellow', 100); break;
+            case 'annihilation': this.enemies.forEach(e => e.takeDamage(e.hp * 0.5)); this.createMagicEffect('white', 200); break;
         }
-
         this.updateHUD();
     }
 
     createMagicEffect(color, count) {
-        for (let i = 0; i < count; i++) {
-            this.particles.push(new Particle(
-                Math.random() * this.canvas.width,
-                Math.random() * this.canvas.height,
-                color
-            ));
-        }
+        for (let i = 0; i < count; i++) this.particles.push(new Particle(Math.random() * 800, Math.random() * 600, color));
     }
 
     loop(time) {
         const delta = time - this.lastTime;
         this.lastTime = time;
-
-        if (!this.paused) {
-            this.update(delta);
-        }
-
+        if (!this.paused) this.update(delta);
         this.draw();
-
-        if (this.hp > 0) {
-            requestAnimationFrame((t) => this.loop(t));
-        } else {
-            this.gameOver();
-        }
+        if (this.hp > 0) requestAnimationFrame((t) => this.loop(t));
+        else this.gameOver();
     }
 
     update(delta) {
-        // Wave management
         if (this.enemies.length === 0 && this.enemiesSpawned >= this.enemiesInWave) {
             const reward = 100 + (this.wave * 50);
-            this.gold += reward;
-            this.wave++;
-            this.enemiesSpawned = 0;
+            this.gold += reward; this.wave++; this.enemiesSpawned = 0;
             this.enemiesInWave = Math.floor(10 * Math.pow(1.15, this.wave));
             this.announce("ONDA CONCLUÍDA", `Próxima: Onda ${this.wave} | Recompensa: $${reward}`);
             this.updateHUD();
@@ -392,666 +259,299 @@ class Game {
             if (this.wave >= 4 && r > 0.9) type = 'tank';
             if (this.wave >= 6 && r > 0.95) type = 'spawn';
             if (this.wave >= 8 && r > 0.98) type = 'shielded';
-
             this.enemies.push(new Enemy(this.wave, this, type));
-            this.enemiesSpawned++;
-            this.spawnTimer = 0;
+            this.enemiesSpawned++; this.spawnTimer = 0;
         }
 
-        // Entities update
-        this.enemies.forEach((e, idx) => {
+        this.enemies.forEach((e, i) => {
             e.update(delta);
             if (e.dead) {
-                if (e.reachedEnd) {
-                    this.hp--;
-                    this.updateHUD();
-                } else {
-                    this.gold += e.bounty;
-                    this.updateHUD();
-                    // Spawn logic
-                    if (e.type === 'spawn') {
-                        for (let i = 0; i < 2; i++) {
-                            const sub = new Enemy(this.wave, this, 'normal');
-                            sub.x = e.x;
-                            sub.y = e.y;
-                            sub.hp = sub.maxHp * 0.5;
-                            sub.pathIndex = e.pathIndex;
-                            this.enemies.push(sub);
-                        }
+                if (e.reachedEnd) { this.hp--; this.updateHUD(); }
+                else {
+                    this.gold += e.bounty; this.updateHUD();
+                    if (e.type === 'spawn') for (let j = 0; j < 2; j++) {
+                        const sub = new Enemy(this.wave, this, 'normal');
+                        sub.x = e.x; sub.y = e.y; sub.hp = sub.maxHp * 0.5; sub.pathIndex = e.pathIndex;
+                        this.enemies.push(sub);
                     }
                 }
-                this.enemies.splice(idx, 1);
+                this.enemies.splice(i, 1);
             }
         });
-
         this.towers.forEach(t => t.update(delta));
-        this.projectiles.forEach((p, idx) => {
-            p.update(delta);
-            if (p.dead) this.projectiles.splice(idx, 1);
-        });
-
-        this.particles.forEach((p, idx) => {
-            p.update(delta);
-            if (p.life <= 0) this.particles.splice(idx, 1);
-        });
+        this.projectiles.forEach((p, i) => { p.update(delta); if (p.dead) this.projectiles.splice(i, 1); });
+        this.particles.forEach((p, i) => { p.update(delta); if (p.life <= 0) this.particles.splice(i, 1); });
     }
 
     draw() {
-        const { ctx } = this;
+        this.ctx.drawImage(this.bgCanvas, 0, 0);
+        this.enemies.forEach(e => e.draw(this.ctx));
+        this.towers.forEach(t => t.draw(this.ctx));
+        this.projectiles.forEach(p => p.draw(this.ctx));
+        this.particles.forEach(p => p.draw(this.ctx));
 
-        // Use the pre-rendered background
-        ctx.drawImage(this.bgCanvas, 0, 0);
-
-        // Draw Entities
-        this.enemies.forEach(e => e.draw(ctx));
-        this.towers.forEach(t => t.draw(ctx));
-        this.projectiles.forEach(p => p.draw(ctx));
-        this.particles.forEach(p => p.draw(ctx));
-
-        // Placement ghost
         if (this.towerToPlace) {
-            ctx.globalAlpha = 0.4;
-            ctx.fillStyle = this.isNearPath(this.towerToPlace.x, this.towerToPlace.y, 40) ? 'rgba(255,0,0,0.5)' : 'rgba(0,255,0,0.3)';
-            ctx.beginPath();
-            ctx.arc(this.towerToPlace.x, this.towerToPlace.y, 20, 0, Math.PI * 2);
-            ctx.fill();
-            // Range indicator
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.arc(this.towerToPlace.x, this.towerToPlace.y, 150, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.globalAlpha = 1.0;
+            this.ctx.globalAlpha = 0.4;
+            this.ctx.fillStyle = this.isNearPath(this.towerToPlace.x, this.towerToPlace.y, 40) ? 'rgba(255,0,0,0.5)' : 'rgba(0,255,0,0.3)';
+            this.ctx.beginPath(); this.ctx.arc(this.towerToPlace.x, this.towerToPlace.y, 20, 0, Math.PI * 2); this.ctx.fill();
+            this.ctx.strokeStyle = 'white'; this.ctx.lineWidth = 1;
+            this.ctx.beginPath(); this.ctx.arc(this.towerToPlace.x, this.towerToPlace.y, 150, 0, Math.PI * 2); this.ctx.stroke();
+            this.ctx.globalAlpha = 1.0;
         }
 
-        // Castle marker (Visible high detail)
-        ctx.save();
-        const castleX = this.path[this.path.length - 1].x;
-        const castleY = this.path[this.path.length - 1].y;
-        ctx.translate(castleX, castleY);
-        // Base
-        ctx.fillStyle = '#455a64';
-        ctx.fillRect(-25, -20, 50, 40);
-        // Towers
-        ctx.fillStyle = '#607d8b';
-        ctx.fillRect(-30, -30, 15, 30);
-        ctx.fillRect(15, -30, 15, 30);
-        // Red Roofs
-        ctx.fillStyle = '#b71c1c';
-        ctx.beginPath(); ctx.moveTo(-32, -30); ctx.lineTo(-22, -45); ctx.lineTo(-12, -30); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(13, -30); ctx.lineTo(23, -45); ctx.lineTo(33, -30); ctx.fill();
-        ctx.restore();
+        // Castle
+        const cX = this.path[this.path.length - 1].x, cY = this.path[this.path.length - 1].y;
+        this.ctx.fillStyle = '#455a64'; this.ctx.fillRect(cX - 25, cY - 20, 50, 40);
+        this.ctx.fillStyle = '#607d8b'; this.ctx.fillRect(cX - 30, cY - 30, 15, 30); this.ctx.fillRect(cX + 15, cY - 30, 15, 30);
+        this.ctx.fillStyle = '#b71c1c';
+        this.ctx.beginPath(); this.ctx.moveTo(cX - 32, cY - 30); this.ctx.lineTo(cX - 22, cY - 45); this.ctx.lineTo(cX - 12, cY - 30); this.ctx.fill();
+        this.ctx.beginPath(); this.ctx.moveTo(cX + 13, cY - 30); this.ctx.lineTo(cX + 23, cY - 45); this.ctx.lineTo(cX + 33, cY - 30); this.ctx.fill();
 
-        // Wave Counter on Canvas
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-        ctx.fillRect(10, 10, 130, 45);
-        ctx.fillStyle = '#00fa9a';
-        ctx.font = 'bold 22px Outfit';
-        ctx.textAlign = 'left';
-        ctx.fillText(`ONDA: ${this.wave}`, 20, 42);
+        // Wave HUD
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; this.ctx.fillRect(10, 10, 130, 45);
+        this.ctx.fillStyle = '#00fa9a'; this.ctx.font = 'bold 22px Outfit'; this.ctx.fillText(`ONDA: ${this.wave}`, 20, 42);
     }
 
     gameOver() {
-        this.ctx.fillStyle = 'rgba(0,0,0,0.8)';
-        this.ctx.fillRect(0, 0, 800, 600);
-        this.ctx.fillStyle = 'white';
-        this.ctx.font = 'bold 48px Outfit';
-        this.ctx.textAlign = 'center';
+        this.ctx.fillStyle = 'rgba(0,0,0,0.8)'; this.ctx.fillRect(0, 0, 800, 600);
+        this.ctx.fillStyle = 'white'; this.ctx.font = 'bold 48px Outfit'; this.ctx.textAlign = 'center';
         this.ctx.fillText('FIM DE JOGO', 400, 300);
-        this.ctx.font = '24px Outfit';
-        this.ctx.fillText(`Você chegou na Onda ${this.wave}`, 400, 350);
-        this.ctx.fillText('Pressione F5 para reiniciar', 400, 400);
+        this.ctx.font = '24px Outfit'; this.ctx.fillText(`Você chegou na Onda ${this.wave}`, 400, 350);
     }
 }
 
 class Enemy {
     constructor(wave, game, type = 'normal') {
-        this.game = game;
-        this.type = type;
-        this.pathIndex = 0;
-        this.x = game.path[0].x;
-        this.y = game.path[0].y;
-        this.baseHp = 20;
-
-        let hpMult = 1;
-        let speedMult = 1;
-        this.radius = 12;
-
+        this.game = game; this.type = type; this.pathIndex = 0;
+        this.x = game.path[0].x; this.y = game.path[0].y;
+        this.radius = 12; this.shield = 0;
+        let hpM = 1, spM = 1;
         switch (type) {
-            case 'fast':
-                hpMult = 0.6;
-                speedMult = 2;
-                this.color = '#ffff00';
-                break;
-            case 'tank':
-                hpMult = 3;
-                speedMult = 0.6;
-                this.radius = 18;
-                this.color = '#8b4513';
-                break;
-            case 'spawn':
-                hpMult = 1.5;
-                speedMult = 1;
-                this.color = '#9400d3';
-                break;
-            case 'shielded':
-                hpMult = 1;
-                speedMult = 0.8;
-                this.shield = 5;
-                this.color = '#4682b4';
-                break;
-            default:
-                this.color = '#ff4444';
+            case 'fast': hpM = 0.6; spM = 2; this.color = '#ffff00'; break;
+            case 'tank': hpM = 3; spM = 0.6; this.radius = 18; this.color = '#8b4513'; break;
+            case 'spawn': hpM = 1.5; spM = 1; this.color = '#9400d3'; break;
+            case 'shielded': hpM = 1; spM = 0.8; this.shield = 5; this.color = '#4682b4'; break;
+            default: this.color = '#ff4444';
         }
-
-        this.maxHp = this.baseHp * Math.pow(1.15, wave - 1) * hpMult;
-        this.hp = this.maxHp;
-        this.speed = (1.2 + (Math.random() * 0.5)) * speedMult;
-        this.tempSpeed = this.speed;
-        this.slowTimer = 0;
-        this.burnTimer = 0;
-        this.burnTicks = 0;
-        this.burnDamage = 0;
-        this.poisonTimer = 0;
-        this.poisonTicks = 0;
-        this.poisonDamage = 0;
-        this.lastTickTime = 0;
+        this.maxHp = 20 * Math.pow(1.15, wave - 1) * hpM; this.hp = this.maxHp;
+        this.speed = (1.2 + Math.random() * 0.5) * spM; this.tempSpeed = this.speed;
         this.bounty = Math.floor(10 * Math.pow(1.05, wave - 1));
-        this.dead = false;
-        this.reachedEnd = false;
+        this.slowT = 0; this.burnT = 0; this.burnD = 0; this.poisonT = 0; this.poisonD = 0;
+        this.lastT = 0; this.dead = false; this.reachedEnd = false;
     }
-
     update(delta) {
-        if (this.slowTimer > 0) {
-            this.slowTimer -= delta;
-            if (this.slowTimer <= 0) this.tempSpeed = this.speed;
+        if (this.slowT > 0) { this.slowT -= delta; if (this.slowT <= 0) this.tempSpeed = this.speed; }
+        this.lastT += delta;
+        if (this.lastT >= 1000) {
+            if (this.burnT > 0) { this.takeDamage(this.burnD, true); this.burnT--; }
+            if (this.poisonT > 0) { this.takeDamage(this.poisonD, true); this.poisonT--; }
+            this.lastT = 0;
         }
-
-        this.lastTickTime += delta;
-        if (this.lastTickTime >= 1000) {
-            if (this.burnTicks > 0) {
-                this.takeDamage(this.burnDamage, true);
-                this.burnTicks--;
-            }
-            if (this.poisonTicks > 0) {
-                this.takeDamage(this.poisonDamage, true);
-                this.poisonTicks--;
-            }
-            this.lastTickTime = 0;
-        }
-
-        // Visual effects timers (for coloring)
-        if (this.burnTimer > 0) this.burnTimer -= delta;
-        if (this.poisonTimer > 0) this.poisonTimer -= delta;
-
         const target = this.game.path[this.pathIndex + 1];
-        if (!target) {
-            this.dead = true;
-            this.reachedEnd = true;
-            return;
-        }
-
-        const dx = target.x - this.x;
-        const dy = target.y - this.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        const moveDist = this.tempSpeed * (delta / 16);
-        if (dist < moveDist) {
-            this.x = target.x;
-            this.y = target.y;
-            this.pathIndex++;
-        } else {
-            this.x += (dx / dist) * moveDist;
-            this.y += (dy / dist) * moveDist;
-        }
-
+        if (!target) { this.dead = true; this.reachedEnd = true; return; }
+        const dx = target.x - this.x, dy = target.y - this.y, d = Math.sqrt(dx * dx + dy * dy);
+        const md = this.tempSpeed * (delta / 16);
+        if (d < md) { this.x = target.x; this.y = target.y; this.pathIndex++; }
+        else { this.x += (dx / d) * md; this.y += (dy / d) * md; }
         if (this.hp <= 0) this.dead = true;
     }
-
-    takeDamage(dmg, ignoreShield = false) {
-        if (!ignoreShield && this.shield > 0) {
-            this.shield--;
-            return;
-        }
-        this.hp -= dmg;
-        if (this.hp <= 0) this.dead = true;
+    takeDamage(dmg, ignoreS = false) {
+        if (!ignoreS && this.shield > 0) { this.shield--; return; }
+        this.hp -= dmg; if (this.hp <= 0) this.dead = true;
     }
-
-    slow(percent, duration) {
-        this.tempSpeed = this.speed * (1 - percent);
-        this.slowTimer = duration;
-    }
-
-    burn(dmg) {
-        this.burnTimer = 4000;
-        this.burnTicks = 4;
-        this.burnDamage = dmg;
-    }
-
-    poison(dmg) {
-        this.poisonTimer = 5000;
-        this.poisonTicks = 5;
-        this.poisonDamage = dmg;
-    }
-
+    slow(p, d) { this.tempSpeed = this.speed * (1 - p); this.slowT = d; }
+    burn(d) { this.burnT = 4; this.burnD = d; }
+    poison(d) { this.poisonT = 5; this.poisonD = d; }
     draw(ctx) {
-        ctx.fillStyle = this.color;
-        if (this.slowTimer > 0) ctx.fillStyle = '#00ffff';
-        if (this.burnTimer > 0) ctx.fillStyle = '#ffa500';
-        if (this.poisonTimer > 0) ctx.fillStyle = '#32cd32';
-
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fill();
-
-        if (this.shield > 0) {
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.radius + 3, 0, Math.PI * 2);
-            ctx.stroke();
-        }
-
-        // HP bar
-        const barWidth = 20;
-        ctx.fillStyle = '#333';
-        ctx.fillRect(this.x - barWidth / 2, this.y - 20, barWidth, 4);
-        ctx.fillStyle = '#2ecc71';
-        ctx.fillRect(this.x - barWidth / 2, this.y - 20, barWidth * (this.hp / this.maxHp), 4);
-    }
-}
-
-class Tower {
-    constructor(x, y, game, type = 'cannon') {
-        this.x = x;
-        this.y = y;
-        this.game = game;
-        this.type = type;
-        this.level = 1;
-        this.timer = 0;
-
-        const data = game.towerData[type];
-        this.color = data.color;
-
-        switch (type) {
-            case 'cannon':
-                this.range = 150;
-                this.damage = 10;
-                this.attackSpeed = 1000;
-                break;
-            case 'fire':
-                this.range = 120;
-                this.damage = 5;
-                this.attackSpeed = 1200;
-                break;
-            case 'ice':
-                this.range = 130;
-                this.damage = 3;
-                this.attackSpeed = 1500;
-                break;
-            case 'lightning':
-                this.range = 200;
-                this.damage = 8;
-                this.attackSpeed = 600;
-                break;
-            case 'magic':
-                this.range = 160;
-                this.damage = 15;
-                this.attackSpeed = 2000;
-                break;
-            case 'poison':
-                this.range = 140;
-                this.damage = 4;
-                this.attackSpeed = 1300;
-                break;
-        }
-    }
-
-    getUpgradeCost() {
-        const baseCost = this.game.towerData[this.type].cost;
-        return Math.floor(baseCost * Math.pow(1.8, this.level));
-    }
-
-    upgrade() {
-        this.level++;
-        this.damage *= 1.4;
-        this.range += 15;
-        this.attackSpeed *= 0.9;
-    }
-
-    update(delta) {
-        this.timer += delta;
-        if (this.timer >= this.attackSpeed) {
-            const target = this.findTarget();
-            if (target) {
-                this.game.projectiles.push(new Projectile(this.x, this.y, target, this.damage, this.type, this.game));
-                this.timer = 0;
-            }
-        }
-    }
-
-    findTarget() {
-        return this.game.enemies.find(e =>
-            Math.sqrt((e.x - this.x) ** 2 + (e.y - this.y) ** 2) <= this.range
-        );
-    }
-
-    draw(ctx) {
-        const { x, y, color, type, level } = this;
         ctx.save();
-        ctx.translate(x, y);
+        ctx.translate(this.x, this.y);
 
-        // Tower Base (Universal)
-        ctx.fillStyle = '#1a1a1a';
-        ctx.beginPath();
-        ctx.rect(-18, -18, 36, 36);
-        ctx.fill();
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        // Movement bobbing effect
+        const bob = Math.sin(Date.now() / 150) * 2;
+        const fastBob = Math.sin(Date.now() / 80) * 4; // Faster animation for fast enemies
 
-        switch (type) {
-            case 'cannon':
-                // Wooden Platform
+        switch (this.type) {
+            case 'normal':
+                // Soldier Body (Chainmail color)
+                ctx.fillStyle = '#a5a5a5';
+                ctx.fillRect(-6, -8 + bob, 12, 14);
+                // Wooden Shield
                 ctx.fillStyle = '#5d4037';
-                ctx.fillRect(-15, -15, 30, 30);
-                // Metal barrel
+                ctx.beginPath(); ctx.arc(-8, bob, 6, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#3e2723'; ctx.lineWidth = 1; ctx.stroke();
+                // Sword
+                ctx.strokeStyle = '#cfd8dc'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(6, 4 + bob); ctx.lineTo(12, -2 + bob); ctx.stroke();
+                // Head/Helmet
+                ctx.fillStyle = '#757575';
+                ctx.beginPath(); ctx.arc(0, -10 + bob, 5, 0, Math.PI * 2); ctx.fill();
+                break;
+
+            case 'fast':
+                // Swift Scout (Goblin)
+                ctx.save();
+                ctx.rotate(Math.atan2(this.tempSpeed, 1) * 0.2); // Lean forward when moving
+                // Dark Green Cloak
+                ctx.fillStyle = '#1b5e20';
+                ctx.beginPath();
+                ctx.moveTo(-5, -5 + fastBob); ctx.lineTo(10, 5 + fastBob); ctx.lineTo(-5, 10 + fastBob);
+                ctx.fill();
+                // Slender Body
+                ctx.fillStyle = '#4caf50'; // Green skin
+                ctx.fillRect(-4, -6 + fastBob, 8, 10);
+                // Hood
+                ctx.fillStyle = '#2e7d32';
+                ctx.beginPath(); ctx.arc(0, -8 + fastBob, 4, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+                break;
+
+            case 'tank':
+                // Bulky Ogre
+                // Large Body (Dark Leather)
+                ctx.fillStyle = '#4e342e';
+                ctx.fillRect(-12, -15 + bob, 24, 25);
+                // Leather patches
+                ctx.fillStyle = '#3e2723';
+                ctx.fillRect(-8, -10 + bob, 6, 6);
+                ctx.fillRect(4, 2 + bob, 6, 6);
+                // Massive Spiked Club
+                ctx.fillStyle = '#5d4037';
+                ctx.fillRect(10, -10 + bob, 8, 20);
+                ctx.fillStyle = '#9e9e9e'; // Stone spikes
+                ctx.fillRect(8, -8 + bob, 3, 3);
+                ctx.fillRect(16, 2 + bob, 3, 3);
+                // Ogre Head
+                ctx.fillStyle = '#8d6e63';
+                ctx.beginPath(); ctx.arc(0, -18 + bob, 8, 0, Math.PI * 2); ctx.fill();
+                break;
+
+            case 'spawn':
+                // Pulsating Slime Progenitor
+                const pulse = Math.sin(Date.now() / 300) * 3;
+                ctx.globalAlpha = 0.6;
+                ctx.fillStyle = '#9c27b0'; // Translucent Purple
+                ctx.beginPath(); ctx.arc(0, bob, 15 + pulse, 0, Math.PI * 2); ctx.fill();
+                // Inner cores
+                ctx.globalAlpha = 1.0;
+                ctx.fillStyle = '#e1bee7';
+                ctx.beginPath(); ctx.arc(-5 + pulse, -5, 4, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(5, 5 - pulse, 3, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(-2, 6, 2, 0, Math.PI * 2); ctx.fill();
+                break;
+
+            case 'shielded':
+                // Dwarf Guardian
+                // Stone Armor
+                ctx.fillStyle = '#616161';
+                ctx.fillRect(-10, -10 + bob, 20, 20);
+                // Obsidian Tower Shield
+                ctx.fillStyle = '#212121'; // Dark Obsidian
+                ctx.fillRect(-16, -15 + bob, 10, 30);
+                ctx.strokeStyle = '#4a148c'; // Runic purple glow
+                ctx.lineWidth = 1;
+                ctx.strokeRect(-16, -15 + bob, 10, 30);
+                // Runic Helm
                 ctx.fillStyle = '#424242';
-                ctx.beginPath();
-                ctx.arc(0, 0, 10, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.strokeStyle = '#212121';
-                ctx.stroke();
+                ctx.beginPath(); ctx.arc(0, -12 + bob, 7, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#ffd700'; // Gold detail
+                ctx.fillRect(-2, -16 + bob, 4, 4);
                 break;
 
-            case 'ice':
-                // Crystal Base
-                ctx.fillStyle = '#1565c0';
-                ctx.beginPath();
-                ctx.moveTo(0, -18);
-                ctx.lineTo(15, 0);
-                ctx.lineTo(0, 18);
-                ctx.lineTo(-15, 0);
-                ctx.closePath();
-                ctx.fill();
-                // Glowing Crystal
-                ctx.fillStyle = '#4fc3f7';
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = '#4fc3f7';
-                ctx.beginPath();
-                ctx.moveTo(0, -12);
-                ctx.lineTo(10, 0);
-                ctx.lineTo(0, 12);
-                ctx.lineTo(-10, 0);
-                ctx.closePath();
-                ctx.fill();
-                break;
-
-            case 'fire':
-                // Volcanic Altar
-                ctx.fillStyle = '#212121';
-                ctx.fillRect(-14, -14, 28, 28);
-                // Pulsing Flame
-                const pulse = Math.sin(Date.now() / 200) * 3;
-                ctx.fillStyle = '#ff3d00';
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = '#ff3d00';
-                ctx.beginPath();
-                ctx.arc(0, 0, 8 + pulse, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.fillStyle = '#ffea00';
-                ctx.beginPath();
-                ctx.arc(0, 0, 4 + pulse / 2, 0, Math.PI * 2);
-                ctx.fill();
-                break;
-
-            case 'poison':
-                // Alchemy Base
-                ctx.fillStyle = '#455a64';
-                ctx.fillRect(-15, -10, 30, 20);
-                // Bubbling Vat
-                ctx.fillStyle = '#32cd32';
-                ctx.beginPath();
-                ctx.arc(0, 0, 12, 0, Math.PI * 2);
-                ctx.fill();
-                // Bubbles
-                const b = (Date.now() / 500) % 1;
-                ctx.fillStyle = 'rgba(255,255,255,0.4)';
-                ctx.beginPath();
-                ctx.arc(-4, -4 + (b * 4), 2, 0, Math.PI * 2);
-                ctx.arc(4, 4 - (b * 6), 3, 0, Math.PI * 2);
-                ctx.fill();
-                break;
-
-            case 'lightning':
-                // Tesla Coil
-                ctx.fillStyle = '#78909c';
-                ctx.fillRect(-3, -15, 6, 30);
-                ctx.fillRect(-15, -15, 30, 4);
-                ctx.fillRect(-15, 11, 30, 4);
-                // Energy Ball
-                ctx.fillStyle = '#ffff00';
-                ctx.shadowBlur = 20;
-                ctx.shadowColor = '#ffff00';
-                ctx.beginPath();
-                ctx.arc(0, 0, 8, 0, Math.PI * 2);
-                ctx.fill();
-                break;
-
-            case 'magic':
-                // Runestone
-                ctx.fillStyle = '#4a148c';
-                ctx.beginPath();
-                ctx.arc(0, 0, 16, 0, Math.PI * 2);
-                ctx.fill();
-                // Floating Crystal
-                const hover = Math.sin(Date.now() / 300) * 5;
-                ctx.fillStyle = '#ea80fc';
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = '#ea80fc';
-                ctx.beginPath();
-                ctx.moveTo(0, -10 + hover);
-                ctx.lineTo(8, hover);
-                ctx.lineTo(0, 10 + hover);
-                ctx.lineTo(-8, hover);
-                ctx.closePath();
-                ctx.fill();
-                break;
+            default:
+                ctx.fillStyle = this.slowT > 0 ? '#00ffff' : (this.burnT > 0 ? '#ffa500' : (this.poisonT > 0 ? '#32cd32' : this.color));
+                ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
         }
 
         ctx.restore();
 
-        // Level text
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 10px Outfit';
-        ctx.textAlign = 'center';
-        ctx.fillText(`LVL ${level}`, x, y + 28);
+        // HP bar remains
+        ctx.fillStyle = '#333'; ctx.fillRect(this.x - 10, this.y - 20, 20, 4);
+        ctx.fillStyle = '#2ecc71'; ctx.fillRect(this.x - 10, this.y - 20, 20 * (this.hp / this.maxHp), 4);
+    }
+}
+
+class Tower {
+    constructor(x, y, game, type) {
+        this.x = x; this.y = y; this.game = game; this.type = type; this.level = 1; this.timer = 0;
+        const d = game.towerData[type];
+        switch (type) {
+            case 'cannon': this.range = 150; this.damage = 10; this.atkS = 1000; break;
+            case 'fire': this.range = 120; this.damage = 5; this.atkS = 1200; break;
+            case 'ice': this.range = 130; this.damage = 3; this.atkS = 1500; break;
+            case 'lightning': this.range = 200; this.damage = 8; this.atkS = 600; break;
+            case 'magic': this.range = 160; this.damage = 15; this.atkS = 2000; break;
+            case 'poison': this.range = 140; this.damage = 4; this.atkS = 1300; break;
+        }
+    }
+    getUpgradeCost() { return Math.floor(this.game.towerData[this.type].cost * Math.pow(1.8, this.level)); }
+    upgrade() {
+        this.level++; this.damage *= 1.4; this.range += 15; this.atkS *= 0.9;
+    }
+    update(delta) {
+        this.timer += delta;
+        if (this.timer >= this.atkS) {
+            const target = this.game.enemies.find(e => Math.sqrt((e.x - this.x) ** 2 + (e.y - this.y) ** 2) <= this.range);
+            if (target) { this.game.projectiles.push(new Projectile(this.x, this.y, target, this.damage, this.type, this.game)); this.timer = 0; }
+        }
+    }
+    draw(ctx) {
+        ctx.save(); ctx.translate(this.x, this.y);
+        ctx.fillStyle = '#1a1a1a'; ctx.beginPath(); ctx.rect(-18, -18, 36, 36); ctx.fill();
+        ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.stroke();
+        switch (this.type) {
+            case 'cannon': ctx.fillStyle = '#5d4037'; ctx.fillRect(-15, -15, 30, 30); ctx.fillStyle = '#424242'; ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI * 2); ctx.fill(); break;
+            case 'ice': ctx.fillStyle = '#1565c0'; ctx.beginPath(); ctx.moveTo(0, -18); ctx.lineTo(15, 0); ctx.lineTo(0, 18); ctx.lineTo(-15, 0); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#4fc3f7'; ctx.shadowBlur = 10; ctx.shadowColor = '#4fc3f7'; ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(10, 0); ctx.lineTo(0, 12); ctx.lineTo(-10, 0); ctx.closePath(); ctx.fill(); break;
+            case 'fire': ctx.fillStyle = '#212121'; ctx.fillRect(-14, -14, 28, 28); const p = Math.sin(Date.now() / 200) * 3; ctx.fillStyle = '#ff3d00'; ctx.shadowBlur = 15; ctx.shadowColor = '#ff3d00'; ctx.beginPath(); ctx.arc(0, 0, 8 + p, 0, Math.PI * 2); ctx.fill(); break;
+            case 'poison': ctx.fillStyle = '#455a64'; ctx.fillRect(-15, -10, 30, 20); ctx.fillStyle = '#32cd32'; ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.fill(); break;
+            case 'lightning': ctx.fillStyle = '#78909c'; ctx.fillRect(-3, -15, 6, 30); ctx.fillStyle = '#ffff00'; ctx.shadowBlur = 20; ctx.shadowColor = '#ffff00'; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill(); break;
+            case 'magic': ctx.fillStyle = '#4a148c'; ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2); ctx.fill(); const h = Math.sin(Date.now() / 300) * 5; ctx.fillStyle = '#ea80fc'; ctx.shadowBlur = 15; ctx.shadowColor = '#ea80fc'; ctx.beginPath(); ctx.moveTo(0, -10 + h); ctx.lineTo(8, h); ctx.lineTo(0, 10 + h); ctx.lineTo(-8, h); ctx.closePath(); ctx.fill(); break;
+        }
+        ctx.restore();
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Outfit'; ctx.textAlign = 'center'; ctx.fillText(`LVL ${this.level}`, this.x, this.y + 28);
     }
 }
 
 class Projectile {
     constructor(x, y, target, damage, type, game) {
-        this.x = x;
-        this.y = y;
-        this.target = target;
-        this.damage = damage;
-        this.type = type;
-        this.game = game;
-        this.speed = 7;
-        this.dead = false;
-        this.piercing = (type === 'magic');
-        this.hitEnemies = new Set();
+        this.x = x; this.y = y; this.target = target; this.damage = damage; this.type = type; this.game = game;
+        this.speed = 7; this.dead = false; this.piercing = (type === 'magic'); this.hitE = new Set();
     }
-
     update(delta) {
         if (this.piercing) {
-            // Move in straight line towards initial target direction
-            if (!this.vx) {
-                const dx = this.target.x - this.x;
-                const dy = this.target.y - this.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                this.vx = (dx / dist) * this.speed;
-                this.vy = (dy / dist) * this.speed;
-            }
-            this.x += this.vx;
-            this.y += this.vy;
-
-            // Check collisions with all enemies
-            this.game.enemies.forEach(e => {
-                if (!this.hitEnemies.has(e)) {
-                    const d = Math.sqrt((e.x - this.x) ** 2 + (e.y - this.y) ** 2);
-                    if (d < e.radius + 5) {
-                        this.applyEffects(e);
-                        this.hitEnemies.add(e);
-                    }
-                }
-            });
-
+            if (!this.vx) { const dx = this.target.x - this.x, dy = this.target.y - this.y, dist = Math.sqrt(dx * dx + dy * dy); this.vx = (dx / dist) * this.speed; this.vy = (dy / dist) * this.speed; }
+            this.x += this.vx; this.y += this.vy;
+            this.game.enemies.forEach(e => { if (!this.hitE.has(e)) { if (Math.sqrt((e.x - this.x) ** 2 + (e.y - this.y) ** 2) < e.radius + 5) { this.apply(e); this.hitE.add(e); } } });
             if (this.x < 0 || this.x > 800 || this.y < 0 || this.y > 600) this.dead = true;
         } else {
-            if (!this.target || this.target.dead) {
-                this.dead = true;
-                return;
-            }
-
-            const dx = this.target.x - this.x;
-            const dy = this.target.y - this.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-
-            if (dist < 10) {
-                this.applyEffects(this.target);
-                this.dead = true;
-            } else {
-                this.x += (dx / dist) * this.speed;
-                this.y += (dy / dist) * this.speed;
-            }
+            if (!this.target || this.target.dead) { this.dead = true; return; }
+            const dx = this.target.x - this.x, dy = this.target.y - this.y, dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 10) { this.apply(this.target); this.dead = true; }
+            else { this.x += (dx / dist) * this.speed; this.y += (dy / dist) * this.speed; }
         }
     }
-
-    applyEffects(target) {
+    apply(target) {
         target.takeDamage(this.damage);
-        switch (this.type) {
-            case 'fire':
-                target.burn(this.damage * 0.5);
-                break;
-            case 'ice':
-                target.slow(0.4, 5000); // 5000ms = 5s
-                break;
-            case 'poison':
-                target.poison(this.damage * 0.3);
-                break;
-        }
+        if (this.type === 'fire') target.burn(this.damage * 0.5);
+        if (this.type === 'ice') target.slow(0.4, 5000);
+        if (this.type === 'poison') target.poison(this.damage * 0.3);
     }
-
     draw(ctx) {
-        const { x, y, type } = this;
-        ctx.save();
-        ctx.translate(x, y);
-
-        switch (type) {
-            case 'cannon':
-                ctx.fillStyle = '#333';
-                ctx.beginPath();
-                ctx.arc(0, 0, 4, 0, Math.PI * 2);
-                ctx.fill();
-                break;
-
-            case 'fire':
-                const fSize = 6 + Math.random() * 4;
-                ctx.fillStyle = '#ff4500';
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = '#ff4500';
-                ctx.beginPath();
-                ctx.arc(0, 0, fSize, 0, Math.PI * 2);
-                ctx.fill();
-                // Inner core
-                ctx.fillStyle = '#ffff00';
-                ctx.beginPath();
-                ctx.arc(0, 0, fSize * 0.5, 0, Math.PI * 2);
-                ctx.fill();
-                break;
-
-            case 'ice':
-                ctx.fillStyle = '#00f2ff';
-                ctx.shadowBlur = 5;
-                ctx.shadowColor = '#00f2ff';
-                ctx.rotate(Math.atan2(this.vy || 1, this.vx || 1));
-                ctx.beginPath();
-                ctx.moveTo(8, 0);
-                ctx.lineTo(-4, -4);
-                ctx.lineTo(-4, 4);
-                ctx.closePath();
-                ctx.fill();
-                break;
-
-            case 'lightning':
-                ctx.strokeStyle = '#ffff00';
-                ctx.lineWidth = 3;
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = '#ffff00';
-                ctx.beginPath();
-                ctx.moveTo(0, 0);
-                for (let i = 0; i < 3; i++) {
-                    ctx.lineTo((Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15);
-                }
-                ctx.stroke();
-                break;
-
-            case 'poison':
-                ctx.fillStyle = '#32cd32';
-                ctx.globalAlpha = 0.6;
-                ctx.beginPath();
-                ctx.arc(0, 0, 8, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.globalAlpha = 1.0;
-                break;
-
-            case 'magic':
-                ctx.fillStyle = '#ea80fc';
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = '#ea80fc';
-                ctx.beginPath();
-                ctx.arc(0, 0, 6, 0, Math.PI * 2);
-                ctx.fill();
-                // Aura particles
-                for (let i = 0; i < 3; i++) {
-                    ctx.fillRect((Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10, 2, 2);
-                }
-                break;
-
-            default:
-                ctx.fillStyle = '#fff';
-                ctx.beginPath();
-                ctx.arc(0, 0, 3, 0, Math.PI * 2);
-                ctx.fill();
+        ctx.save(); ctx.translate(this.x, this.y);
+        ctx.fillStyle = this.game.towerData[this.type].color;
+        switch (this.type) {
+            case 'fire': ctx.fillStyle = '#ff4500'; ctx.shadowBlur = 10; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill(); break;
+            case 'ice': ctx.fillStyle = '#00f2ff'; ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-4, -4); ctx.lineTo(-4, 4); ctx.fill(); break;
+            case 'lightning': ctx.strokeStyle = '#ffff00'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo((Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15); ctx.stroke(); break;
+            default: ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill();
         }
-
         ctx.restore();
     }
 }
 
 class Particle {
-    constructor(x, y, color) {
-        this.x = x;
-        this.y = y;
-        this.color = color;
-        this.vx = (Math.random() - 0.5) * 5;
-        this.vy = (Math.random() - 0.5) * 5;
-        this.life = 100;
-    }
-
-    update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        this.life -= 2;
-    }
-
-    draw(ctx) {
-        ctx.globalAlpha = this.life / 100;
-        ctx.fillStyle = this.color;
-        ctx.fillRect(this.x, this.y, 4, 4);
-        ctx.globalAlpha = 1.0;
-    }
+    constructor(x, y, color) { this.x = x; this.y = y; this.color = color; this.vx = (Math.random() - 0.5) * 5; this.vy = (Math.random() - 0.5) * 5; this.life = 100; }
+    update() { this.x += this.vx; this.y += this.vy; this.life -= 2; }
+    draw(ctx) { ctx.globalAlpha = this.life / 100; ctx.fillStyle = this.color; ctx.fillRect(this.x, this.y, 4, 4); ctx.globalAlpha = 1.0; }
 }
 
 const game = new Game();
