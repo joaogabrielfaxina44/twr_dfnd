@@ -55,6 +55,21 @@ class Game {
     init() {
         this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
         this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
+
+        // Touch support
+        this.canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            this.handleInput(touch.clientX, touch.clientY, true);
+        }, { passive: false });
+
+        this.canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            this.handleInput(touch.clientX, touch.clientY, false);
+        }, { passive: false });
+
+        window.addEventListener('resize', () => this.updateHUD()); // Basic HUD update on resize
         this.updateHUD();
     }
 
@@ -126,19 +141,35 @@ class Game {
     }
 
     handleMouseMove(e) {
-        const rect = this.canvas.getBoundingClientRect();
-        this.towerToPlace = this.selectedTowerType ? { x: e.clientX - rect.left, y: e.clientY - rect.top, type: this.selectedTowerType } : null;
+        this.handleInput(e.clientX, e.clientY, false);
     }
 
     handleMouseDown(e) {
+        this.handleInput(e.clientX, e.clientY, true);
+    }
+
+    handleInput(clientX, clientY, isClick) {
         const rect = this.canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left, y = e.clientY - rect.top;
+        // Map screen coordinates to internal 800x600 grid
+        const scaleX = 800 / rect.width;
+        const scaleY = 600 / rect.height;
+        const x = (clientX - rect.left) * scaleX;
+        const y = (clientY - rect.top) * scaleY;
+
+        if (isClick) {
+            this.processClick(x, y, clientX, clientY);
+        } else {
+            this.towerToPlace = this.selectedTowerType ? { x, y, type: this.selectedTowerType } : null;
+        }
+    }
+
+    processClick(x, y, screenX, screenY) {
         document.getElementById('upgrade-overlay').style.display = 'none';
 
         const clickedTower = this.towers.find(t => Math.sqrt((t.x - x) ** 2 + (t.y - y) ** 2) < 25);
         if (clickedTower) {
             this.selectedActiveTower = clickedTower;
-            this.showUpgradeMenu(e.clientX, e.clientY);
+            this.showUpgradeMenu(screenX, screenY);
             this.selectedTowerType = null;
             return;
         }
@@ -150,6 +181,7 @@ class Game {
                 this.gold -= data.cost;
                 this.towerLimits[this.selectedTowerType]++;
                 this.selectedTowerType = null;
+                this.selectTowerType(null); // Deselect on placement
                 this.updateHUD();
             } else if (this.towerLimits[this.selectedTowerType] >= 5) {
                 this.announce("LIMITE ATINGIDO", "Máximo 5 torres deste tipo!");
