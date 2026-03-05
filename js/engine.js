@@ -154,10 +154,10 @@ class Game {
     handleInput(clientX, clientY, isClick) {
         if (!this.canvas) return;
         const rect = this.canvas.getBoundingClientRect();
-        const scaleX = 800 / rect.width;
-        const scaleY = 600 / rect.height;
-        const x = (clientX - rect.left) * scaleX;
-        const y = (clientY - rect.top) * scaleY;
+
+        // Mapeia coordenadas para o mundo lógico de 800x600 do jogo
+        const x = (clientX - rect.left) * (800 / rect.width);
+        const y = (clientY - rect.top) * (600 / rect.height);
 
         if (isClick) this.processClick(x, y, clientX, clientY);
         else this.towerToPlace = this.selectedTowerType ? { x, y, type: this.selectedTowerType } : null;

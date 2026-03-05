@@ -60,66 +60,72 @@ body {
     background: var(--bg-dark);
     display: flex;
     flex-direction: row;
+    /* Horizontal layout for landscape */
     overflow: hidden;
 }
 
 #game-canvas {
-    flex: 1;
     height: 100%;
+    aspect-ratio: 4 / 3;
+    /* Maintain game aspect ratio */
     background: #111;
     cursor: crosshair;
     display: block;
+    object-fit: contain;
 }
 
 #ui-panel {
-    width: 250px;
+    flex: 1;
+    /* Take remaining space */
     background: var(--glass-bg);
     border-left: 1px solid var(--glass-border);
     display: flex;
     flex-direction: column;
-    padding: 15px;
-    gap: 15px;
+    padding: 10px;
+    gap: 10px;
     backdrop-filter: blur(20px);
     overflow-y: auto;
+    min-width: 150px;
 }
 
+/* Flexible Grid for HUD */
 .hud-item {
     background: rgba(0, 0, 0, 0.3);
-    padding: 10px;
-    border-radius: 12px;
+    padding: 8px;
+    border-radius: 8px;
     border: 1px solid var(--glass-border);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    font-size: 0.9rem;
 }
 
 .hud-label {
     color: #aaa;
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     text-transform: uppercase;
 }
 
 .hud-value {
     font-weight: 700;
     color: var(--accent);
-    font-size: 1.1rem;
 }
 
 .ui-scroll-area {
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 10px;
 }
 
 #towers-menu,
 #skills-menu {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 5px;
 }
 
 .menu-title {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: #fff;
     opacity: 0.7;
@@ -128,13 +134,12 @@ body {
 .shop-item {
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
-    padding: 8px;
-    border-radius: 10px;
+    padding: 6px;
+    border-radius: 8px;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 10px;
-    transition: all 0.2s;
+    gap: 8px;
 }
 
 .shop-item:hover {
@@ -143,31 +148,36 @@ body {
 
 .shop-item.selected {
     border-color: var(--primary);
-    box-shadow: 0 0 10px var(--primary);
+    box-shadow: 0 0 5px var(--primary);
 }
 
 .item-icon {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     background: var(--primary);
-    border-radius: 6px;
+    border-radius: 4px;
     display: flex;
     justify-content: center;
     align-items: center;
+    font-size: 0.9rem;
 }
 
 .item-info {
     flex: 1;
+    overflow: hidden;
 }
 
 .item-name {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     display: block;
 }
 
 .item-cost {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     color: #ffd700;
 }
 
@@ -175,18 +185,14 @@ body {
     position: relative;
     background: linear-gradient(135deg, #1e1e2f, #2d2d44);
     border: 1px solid var(--glass-border);
-    padding: 10px;
-    border-radius: 8px;
+    padding: 8px;
+    border-radius: 6px;
     color: #fff;
     font-family: inherit;
+    font-size: 0.75rem;
     text-align: left;
     cursor: pointer;
     overflow: hidden;
-}
-
-.skill-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
 }
 
 .skill-cooldown {
@@ -196,54 +202,37 @@ body {
     width: 100%;
     height: 0%;
     background: rgba(0, 0, 0, 0.6);
-    transition: height linear;
 }
 
 .wave-info {
     text-align: center;
-    padding: 15px;
+    padding: 10px;
     background: rgba(138, 43, 226, 0.1);
-    margin-top: auto;
+    font-size: 1rem;
+    font-weight: 800;
 }
 
-/* Landscape Mobile Tweaks */
-@media screen and (max-height: 500px) {
+/* Specific Landscape Mobile Tweaks for small screens */
+@media screen and (max-height: 450px) {
     #ui-panel {
-        width: 180px;
-        padding: 10px;
-        gap: 10px;
+        padding: 5px;
+        gap: 5px;
     }
 
     .hud-item {
-        padding: 5px;
+        padding: 4px;
     }
 
     .shop-item {
-        padding: 5px;
+        padding: 4px;
     }
 
-    .item-icon {
-        width: 24px;
-        height: 24px;
-        font-size: 0.8rem;
+    .menu-title {
+        font-size: 0.65rem;
     }
 
     #ui-panel h1 {
         display: none;
-    }
-}
-
-@keyframes pulse {
-    0% {
-        transform: scale(1);
-    }
-
-    50% {
-        transform: scale(1.05);
-    }
-
-    100% {
-        transform: scale(1);
     }
 }
 
@@ -257,4 +246,10 @@ body {
     opacity: 0;
     transition: opacity 0.5s;
     z-index: 1000;
+}
+
+.announcement-text {
+    font-size: 2rem;
+    color: var(--accent);
+    font-weight: 800;
 }
