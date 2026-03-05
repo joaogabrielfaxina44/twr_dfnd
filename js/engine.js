@@ -1,6 +1,7 @@
 class Game {
     constructor() {
         this.canvas = document.getElementById('game-canvas');
+        if (!this.canvas) return;
         this.ctx = this.canvas.getContext('2d');
         this.gold = 500;
         this.hp = 100;
@@ -69,7 +70,7 @@ class Game {
             this.handleInput(touch.clientX, touch.clientY, false);
         }, { passive: false });
 
-        window.addEventListener('resize', () => this.updateHUD()); // Basic HUD update on resize
+        window.addEventListener('resize', () => this.updateHUD());
         this.updateHUD();
     }
 
@@ -88,8 +89,7 @@ class Game {
         }
         for (let i = 0; i < 400; i++) {
             bctx.fillStyle = '#4caf50';
-            const x = Math.random() * 800, y = Math.random() * 600;
-            bctx.fillRect(x, y, 2, 4);
+            bctx.fillRect(Math.random() * 800, Math.random() * 600, 2, 4);
         }
 
         // Dirt Path
@@ -106,7 +106,6 @@ class Game {
         bctx.lineWidth = 36;
         bctx.stroke();
 
-        // Path stones
         for (let i = 0; i < 1000; i++) {
             const x = Math.random() * 800, y = Math.random() * 600;
             if (this.isNearPath(x, y, 22)) {
@@ -118,53 +117,55 @@ class Game {
 
     start() {
         this.paused = false;
-        document.getElementById('start-screen').style.display = 'none';
+        const startScreen = document.getElementById('start-screen');
+        if (startScreen) startScreen.style.display = 'none';
         this.lastTime = performance.now();
         requestAnimationFrame((time) => this.loop(time));
     }
 
     updateHUD() {
-        document.getElementById('gold-value').innerText = Math.floor(this.gold);
-        document.getElementById('hp-value').innerText = Math.max(0, this.hp);
-        document.getElementById('wave-number').innerText = this.wave;
+        const goldVal = document.getElementById('gold-value');
+        const hpVal = document.getElementById('hp-value');
+        const waveNum = document.getElementById('wave-number');
+
+        if (goldVal) goldVal.innerText = Math.floor(this.gold);
+        if (hpVal) hpVal.innerText = Math.max(0, this.hp);
+        if (waveNum) waveNum.innerText = this.wave;
+
         Object.keys(this.skills).forEach(id => {
             const skill = this.skills[id];
             const btn = document.getElementById('skill-' + id);
+            if (!btn) return;
             const now = Date.now();
             const elapsed = now - (skill.lastUsed || 0);
             const isCooldown = elapsed < skill.cooldown;
             btn.disabled = this.gold < skill.cost || isCooldown;
             const cooldownEl = document.getElementById('cooldown-' + id);
-            if (isCooldown) cooldownEl.style.height = (100 - (elapsed / skill.cooldown * 100)) + '%';
-            else cooldownEl.style.height = '0%';
+            if (cooldownEl) {
+                if (isCooldown) cooldownEl.style.height = (100 - (elapsed / skill.cooldown * 100)) + '%';
+                else cooldownEl.style.height = '0%';
+            }
         });
     }
 
-    handleMouseMove(e) {
-        this.handleInput(e.clientX, e.clientY, false);
-    }
-
-    handleMouseDown(e) {
-        this.handleInput(e.clientX, e.clientY, true);
-    }
+    handleMouseMove(e) { this.handleInput(e.clientX, e.clientY, false); }
+    handleMouseDown(e) { this.handleInput(e.clientX, e.clientY, true); }
 
     handleInput(clientX, clientY, isClick) {
+        if (!this.canvas) return;
         const rect = this.canvas.getBoundingClientRect();
-        // Map screen coordinates to internal 800x600 grid
         const scaleX = 800 / rect.width;
         const scaleY = 600 / rect.height;
         const x = (clientX - rect.left) * scaleX;
         const y = (clientY - rect.top) * scaleY;
 
-        if (isClick) {
-            this.processClick(x, y, clientX, clientY);
-        } else {
-            this.towerToPlace = this.selectedTowerType ? { x, y, type: this.selectedTowerType } : null;
-        }
+        if (isClick) this.processClick(x, y, clientX, clientY);
+        else this.towerToPlace = this.selectedTowerType ? { x, y, type: this.selectedTowerType } : null;
     }
 
     processClick(x, y, screenX, screenY) {
-        document.getElementById('upgrade-overlay').style.display = 'none';
+        const overlay = document.getElementById('upgrade-overlay');
+        if (overlay) overlay.style.display = 'none';
 
         const clickedTower = this.towers.find(t => Math.sqrt((t.x - x) ** 2 + (t.y - y) ** 2) < 25);
         if (clickedTower) {
@@ -180,8 +181,7 @@ class Game {
                 this.towers.push(new Tower(x, y, this, this.selectedTowerType));
                 this.gold -= data.cost;
                 this.towerLimits[this.selectedTowerType]++;
-                this.selectedTowerType = null;
-                this.selectTowerType(null); // Deselect on placement
+                this.selectTowerType(null);
                 this.updateHUD();
             } else if (this.towerLimits[this.selectedTowerType] >= 5) {
                 this.announce("LIMITE ATINGIDO", "Máximo 5 torres deste tipo!");
@@ -203,19 +203,26 @@ class Game {
     selectTowerType(type) {
         this.selectedTowerType = type;
         document.querySelectorAll('.shop-item').forEach(i => i.classList.remove('selected'));
-        if (type) document.getElementById('shop-' + type).classList.add('selected');
+        if (type) {
+            const el = document.getElementById('shop-' + type);
+            if (el) el.classList.add('selected');
+        }
     }
 
     showUpgradeMenu(screenX, screenY) {
-        const overlay = document.getElementById('upgrade-overlay'), info = document.getElementById('upgrade-info');
+        const overlay = document.getElementById('upgrade-overlay');
+        const info = document.getElementById('upgrade-info');
+        if (!overlay || !info) return;
         const tower = this.selectedActiveTower;
         overlay.style.display = 'block';
         overlay.style.left = screenX + 'px';
         overlay.style.top = (screenY - 60) + 'px';
         info.innerHTML = `Nível: ${tower.level}/7<br>Next: +${(tower.damage * 0.4).toFixed(1)} Dano`;
         const btn = overlay.querySelector('button');
-        btn.innerText = tower.level >= 7 ? "MAX" : `UPGRADE ($${tower.getUpgradeCost()})`;
-        btn.disabled = tower.level >= 7;
+        if (btn) {
+            btn.innerText = tower.level >= 7 ? "MAX" : `UPGRADE ($${tower.getUpgradeCost()})`;
+            btn.disabled = tower.level >= 7;
+        }
     }
 
     upgradeSelectedTower() {
@@ -223,7 +230,8 @@ class Game {
             this.gold -= this.selectedActiveTower.getUpgradeCost();
             this.selectedActiveTower.upgrade();
             this.updateHUD();
-            document.getElementById('upgrade-overlay').style.display = 'none';
+            const overlay = document.getElementById('upgrade-overlay');
+            if (overlay) overlay.style.display = 'none';
         }
     }
 
@@ -233,24 +241,27 @@ class Game {
             this.towerLimits[this.selectedActiveTower.type]--;
             this.towers = this.towers.filter(t => t !== this.selectedActiveTower);
             this.updateHUD();
-            document.getElementById('upgrade-overlay').style.display = 'none';
+            const overlay = document.getElementById('upgrade-overlay');
+            if (overlay) overlay.style.display = 'none';
         }
     }
 
     announce(main, sub) {
         const el = document.getElementById('announcement');
-        document.getElementById('announcement-main').innerText = main;
-        document.getElementById('announcement-sub').innerText = sub;
+        const amain = document.getElementById('announcement-main');
+        const asub = document.getElementById('announcement-sub');
+        if (!el || !amain || !asub) return;
+        amain.innerText = main;
+        asub.innerText = sub;
         el.style.opacity = '1';
         setTimeout(() => el.style.opacity = '0', 3000);
     }
 
     castSkill(id) {
         const skill = this.skills[id];
-        if (this.gold < skill.cost || Date.now() - (skill.lastUsed || 0) < skill.cooldown) return;
+        if (!skill || this.gold < skill.cost || Date.now() - (skill.lastUsed || 0) < skill.cooldown) return;
         this.gold -= skill.cost;
         skill.lastUsed = Date.now();
-
         switch (id) {
             case 'arrows': this.enemies.forEach(e => e.takeDamage(10)); this.createMagicEffect('purple', 50); break;
             case 'fire': this.enemies.forEach(e => { e.takeDamage(15); e.burn(5); }); this.createMagicEffect('orange', 80); break;
@@ -282,7 +293,6 @@ class Game {
             this.announce("ONDA CONCLUÍDA", `Próxima: Onda ${this.wave} | Recompensa: $${reward}`);
             this.updateHUD();
         }
-
         this.spawnTimer += delta;
         if (this.spawnTimer > 1000 && this.enemiesSpawned < this.enemiesInWave) {
             let type = 'normal';
@@ -331,7 +341,6 @@ class Game {
             this.ctx.globalAlpha = 1.0;
         }
 
-        // Castle
         const cX = this.path[this.path.length - 1].x, cY = this.path[this.path.length - 1].y;
         this.ctx.fillStyle = '#455a64'; this.ctx.fillRect(cX - 25, cY - 20, 50, 40);
         this.ctx.fillStyle = '#607d8b'; this.ctx.fillRect(cX - 30, cY - 30, 15, 30); this.ctx.fillRect(cX + 15, cY - 30, 15, 30);
@@ -339,7 +348,6 @@ class Game {
         this.ctx.beginPath(); this.ctx.moveTo(cX - 32, cY - 30); this.ctx.lineTo(cX - 22, cY - 45); this.ctx.lineTo(cX - 12, cY - 30); this.ctx.fill();
         this.ctx.beginPath(); this.ctx.moveTo(cX + 13, cY - 30); this.ctx.lineTo(cX + 23, cY - 45); this.ctx.lineTo(cX + 33, cY - 30); this.ctx.fill();
 
-        // Wave HUD
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; this.ctx.fillRect(10, 10, 130, 45);
         this.ctx.fillStyle = '#00fa9a'; this.ctx.font = 'bold 22px Outfit'; this.ctx.fillText(`ONDA: ${this.wave}`, 20, 42);
     }
@@ -395,108 +403,40 @@ class Enemy {
     burn(d) { this.burnT = 4; this.burnD = d; }
     poison(d) { this.poisonT = 5; this.poisonD = d; }
     draw(ctx) {
-        ctx.save();
-        ctx.translate(this.x, this.y);
-
-        // Movement bobbing effect
+        ctx.save(); ctx.translate(this.x, this.y);
         const bob = Math.sin(Date.now() / 150) * 2;
-        const fastBob = Math.sin(Date.now() / 80) * 4; // Faster animation for fast enemies
-
+        const fBob = Math.sin(Date.now() / 80) * 4;
         switch (this.type) {
             case 'normal':
-                // Soldier Body (Chainmail color)
-                ctx.fillStyle = '#a5a5a5';
-                ctx.fillRect(-6, -8 + bob, 12, 14);
-                // Wooden Shield
-                ctx.fillStyle = '#5d4037';
-                ctx.beginPath(); ctx.arc(-8, bob, 6, 0, Math.PI * 2); ctx.fill();
-                ctx.strokeStyle = '#3e2723'; ctx.lineWidth = 1; ctx.stroke();
-                // Sword
-                ctx.strokeStyle = '#cfd8dc'; ctx.lineWidth = 2;
-                ctx.beginPath(); ctx.moveTo(6, 4 + bob); ctx.lineTo(12, -2 + bob); ctx.stroke();
-                // Head/Helmet
-                ctx.fillStyle = '#757575';
-                ctx.beginPath(); ctx.arc(0, -10 + bob, 5, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#a5a5a5'; ctx.fillRect(-6, -8 + bob, 12, 14);
+                ctx.fillStyle = '#5d4037'; ctx.beginPath(); ctx.arc(-8, bob, 6, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#cfd8dc'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(6, 4 + bob); ctx.lineTo(12, -2 + bob); ctx.stroke();
+                ctx.fillStyle = '#757575'; ctx.beginPath(); ctx.arc(0, -10 + bob, 5, 0, Math.PI * 2); ctx.fill();
                 break;
-
             case 'fast':
-                // Swift Scout (Goblin)
-                ctx.save();
-                ctx.rotate(Math.atan2(this.tempSpeed, 1) * 0.2); // Lean forward when moving
-                // Dark Green Cloak
-                ctx.fillStyle = '#1b5e20';
-                ctx.beginPath();
-                ctx.moveTo(-5, -5 + fastBob); ctx.lineTo(10, 5 + fastBob); ctx.lineTo(-5, 10 + fastBob);
-                ctx.fill();
-                // Slender Body
-                ctx.fillStyle = '#4caf50'; // Green skin
-                ctx.fillRect(-4, -6 + fastBob, 8, 10);
-                // Hood
-                ctx.fillStyle = '#2e7d32';
-                ctx.beginPath(); ctx.arc(0, -8 + fastBob, 4, 0, Math.PI * 2); ctx.fill();
-                ctx.restore();
+                ctx.save(); ctx.rotate(0.2);
+                ctx.fillStyle = '#1b5e20'; ctx.beginPath(); ctx.moveTo(-5, -5 + fBob); ctx.lineTo(10, 5 + fBob); ctx.lineTo(-5, 10 + fBob); ctx.fill();
+                ctx.fillStyle = '#4caf50'; ctx.fillRect(-4, -6 + fBob, 8, 10);
+                ctx.fillStyle = '#2e7d32'; ctx.beginPath(); ctx.arc(0, -8 + fBob, 4, 0, Math.PI * 2); ctx.fill(); ctx.restore();
                 break;
-
             case 'tank':
-                // Bulky Ogre
-                // Large Body (Dark Leather)
-                ctx.fillStyle = '#4e342e';
-                ctx.fillRect(-12, -15 + bob, 24, 25);
-                // Leather patches
-                ctx.fillStyle = '#3e2723';
-                ctx.fillRect(-8, -10 + bob, 6, 6);
-                ctx.fillRect(4, 2 + bob, 6, 6);
-                // Massive Spiked Club
-                ctx.fillStyle = '#5d4037';
-                ctx.fillRect(10, -10 + bob, 8, 20);
-                ctx.fillStyle = '#9e9e9e'; // Stone spikes
-                ctx.fillRect(8, -8 + bob, 3, 3);
-                ctx.fillRect(16, 2 + bob, 3, 3);
-                // Ogre Head
-                ctx.fillStyle = '#8d6e63';
-                ctx.beginPath(); ctx.arc(0, -18 + bob, 8, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#4e342e'; ctx.fillRect(-12, -15 + bob, 24, 25);
+                ctx.fillStyle = '#5d4037'; ctx.fillRect(10, -10 + bob, 8, 20);
+                ctx.fillStyle = '#8d6e63'; ctx.beginPath(); ctx.arc(0, -18 + bob, 8, 0, Math.PI * 2); ctx.fill();
                 break;
-
             case 'spawn':
-                // Pulsating Slime Progenitor
-                const pulse = Math.sin(Date.now() / 300) * 3;
-                ctx.globalAlpha = 0.6;
-                ctx.fillStyle = '#9c27b0'; // Translucent Purple
-                ctx.beginPath(); ctx.arc(0, bob, 15 + pulse, 0, Math.PI * 2); ctx.fill();
-                // Inner cores
-                ctx.globalAlpha = 1.0;
-                ctx.fillStyle = '#e1bee7';
-                ctx.beginPath(); ctx.arc(-5 + pulse, -5, 4, 0, Math.PI * 2); ctx.fill();
-                ctx.beginPath(); ctx.arc(5, 5 - pulse, 3, 0, Math.PI * 2); ctx.fill();
-                ctx.beginPath(); ctx.arc(-2, 6, 2, 0, Math.PI * 2); ctx.fill();
-                break;
-
+                const pl = Math.sin(Date.now() / 300) * 3;
+                ctx.globalAlpha = 0.6; ctx.fillStyle = '#9c27b0'; ctx.beginPath(); ctx.arc(0, bob, 15 + pl, 0, Math.PI * 2); ctx.fill();
+                ctx.globalAlpha = 1.0; ctx.fillStyle = '#e1bee7'; ctx.beginPath(); ctx.arc(-5 + pl, -5, 4, 0, Math.PI * 2); ctx.fill(); ctx.restore(); return; // Extra restore safe
             case 'shielded':
-                // Dwarf Guardian
-                // Stone Armor
-                ctx.fillStyle = '#616161';
-                ctx.fillRect(-10, -10 + bob, 20, 20);
-                // Obsidian Tower Shield
-                ctx.fillStyle = '#212121'; // Dark Obsidian
-                ctx.fillRect(-16, -15 + bob, 10, 30);
-                ctx.strokeStyle = '#4a148c'; // Runic purple glow
-                ctx.lineWidth = 1;
-                ctx.strokeRect(-16, -15 + bob, 10, 30);
-                // Runic Helm
-                ctx.fillStyle = '#424242';
-                ctx.beginPath(); ctx.arc(0, -12 + bob, 7, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = '#ffd700'; // Gold detail
-                ctx.fillRect(-2, -16 + bob, 4, 4);
+                ctx.fillStyle = '#616161'; ctx.fillRect(-10, -10 + bob, 20, 20);
+                ctx.fillStyle = '#212121'; ctx.fillRect(-16, -15 + bob, 10, 30);
+                ctx.fillStyle = '#424242'; ctx.beginPath(); ctx.arc(0, -12 + bob, 7, 0, Math.PI * 2); ctx.fill();
                 break;
-
             default:
-                ctx.fillStyle = this.slowT > 0 ? '#00ffff' : (this.burnT > 0 ? '#ffa500' : (this.poisonT > 0 ? '#32cd32' : this.color));
-                ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
         }
-
         ctx.restore();
-
-        // HP bar remains
         ctx.fillStyle = '#333'; ctx.fillRect(this.x - 10, this.y - 20, 20, 4);
         ctx.fillStyle = '#2ecc71'; ctx.fillRect(this.x - 10, this.y - 20, 20 * (this.hp / this.maxHp), 4);
     }
@@ -516,27 +456,24 @@ class Tower {
         }
     }
     getUpgradeCost() { return Math.floor(this.game.towerData[this.type].cost * Math.pow(1.8, this.level)); }
-    upgrade() {
-        this.level++; this.damage *= 1.4; this.range += 15; this.atkS *= 0.9;
-    }
+    upgrade() { this.level++; this.damage *= 1.4; this.range += 15; this.atkS *= 0.9; }
     update(delta) {
         this.timer += delta;
         if (this.timer >= this.atkS) {
-            const target = this.game.enemies.find(e => Math.sqrt((e.x - this.x) ** 2 + (e.y - this.y) ** 2) <= this.range);
-            if (target) { this.game.projectiles.push(new Projectile(this.x, this.y, target, this.damage, this.type, this.game)); this.timer = 0; }
+            const t = this.game.enemies.find(e => Math.sqrt((e.x - this.x) ** 2 + (e.y - this.y) ** 2) <= this.range);
+            if (t) { this.game.projectiles.push(new Projectile(this.x, this.y, t, this.damage, this.type, this.game)); this.timer = 0; }
         }
     }
     draw(ctx) {
         ctx.save(); ctx.translate(this.x, this.y);
         ctx.fillStyle = '#1a1a1a'; ctx.beginPath(); ctx.rect(-18, -18, 36, 36); ctx.fill();
-        ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.stroke();
         switch (this.type) {
             case 'cannon': ctx.fillStyle = '#5d4037'; ctx.fillRect(-15, -15, 30, 30); ctx.fillStyle = '#424242'; ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI * 2); ctx.fill(); break;
-            case 'ice': ctx.fillStyle = '#1565c0'; ctx.beginPath(); ctx.moveTo(0, -18); ctx.lineTo(15, 0); ctx.lineTo(0, 18); ctx.lineTo(-15, 0); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#4fc3f7'; ctx.shadowBlur = 10; ctx.shadowColor = '#4fc3f7'; ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(10, 0); ctx.lineTo(0, 12); ctx.lineTo(-10, 0); ctx.closePath(); ctx.fill(); break;
-            case 'fire': ctx.fillStyle = '#212121'; ctx.fillRect(-14, -14, 28, 28); const p = Math.sin(Date.now() / 200) * 3; ctx.fillStyle = '#ff3d00'; ctx.shadowBlur = 15; ctx.shadowColor = '#ff3d00'; ctx.beginPath(); ctx.arc(0, 0, 8 + p, 0, Math.PI * 2); ctx.fill(); break;
+            case 'ice': ctx.fillStyle = '#1565c0'; ctx.beginPath(); ctx.moveTo(0, -18); ctx.lineTo(15, 0); ctx.lineTo(0, 18); ctx.lineTo(-15, 0); ctx.closePath(); ctx.fill(); break;
+            case 'fire': ctx.fillStyle = '#212121'; ctx.fillRect(-14, -14, 28, 28); const p = Math.sin(Date.now() / 200) * 3; ctx.fillStyle = '#ff3d00'; ctx.beginPath(); ctx.arc(0, 0, 8 + p, 0, Math.PI * 2); ctx.fill(); break;
             case 'poison': ctx.fillStyle = '#455a64'; ctx.fillRect(-15, -10, 30, 20); ctx.fillStyle = '#32cd32'; ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.fill(); break;
-            case 'lightning': ctx.fillStyle = '#78909c'; ctx.fillRect(-3, -15, 6, 30); ctx.fillStyle = '#ffff00'; ctx.shadowBlur = 20; ctx.shadowColor = '#ffff00'; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill(); break;
-            case 'magic': ctx.fillStyle = '#4a148c'; ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2); ctx.fill(); const h = Math.sin(Date.now() / 300) * 5; ctx.fillStyle = '#ea80fc'; ctx.shadowBlur = 15; ctx.shadowColor = '#ea80fc'; ctx.beginPath(); ctx.moveTo(0, -10 + h); ctx.lineTo(8, h); ctx.lineTo(0, 10 + h); ctx.lineTo(-8, h); ctx.closePath(); ctx.fill(); break;
+            case 'lightning': ctx.fillStyle = '#78909c'; ctx.fillRect(-3, -15, 6, 30); ctx.fillStyle = '#ffff00'; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill(); break;
+            case 'magic': ctx.fillStyle = '#4a148c'; ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2); ctx.fill(); break;
         }
         ctx.restore();
         ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Outfit'; ctx.textAlign = 'center'; ctx.fillText(`LVL ${this.level}`, this.x, this.y + 28);
@@ -550,33 +487,30 @@ class Projectile {
     }
     update(delta) {
         if (this.piercing) {
-            if (!this.vx) { const dx = this.target.x - this.x, dy = this.target.y - this.y, dist = Math.sqrt(dx * dx + dy * dy); this.vx = (dx / dist) * this.speed; this.vy = (dy / dist) * this.speed; }
+            if (!this.vx) { const dx = this.target.x - this.x, dy = this.target.y - this.y, d = Math.sqrt(dx * dx + dy * dy); this.vx = (dx / d) * this.speed; this.vy = (dy / d) * this.speed; }
             this.x += this.vx; this.y += this.vy;
             this.game.enemies.forEach(e => { if (!this.hitE.has(e)) { if (Math.sqrt((e.x - this.x) ** 2 + (e.y - this.y) ** 2) < e.radius + 5) { this.apply(e); this.hitE.add(e); } } });
             if (this.x < 0 || this.x > 800 || this.y < 0 || this.y > 600) this.dead = true;
         } else {
             if (!this.target || this.target.dead) { this.dead = true; return; }
-            const dx = this.target.x - this.x, dy = this.target.y - this.y, dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < 10) { this.apply(this.target); this.dead = true; }
-            else { this.x += (dx / dist) * this.speed; this.y += (dy / dist) * this.speed; }
+            const dx = this.target.x - this.x, dy = this.target.y - this.y, d = Math.sqrt(dx * dx + dy * dy);
+            if (d < 10) { this.apply(this.target); this.dead = true; }
+            else { this.x += (dx / d) * this.speed; this.y += (dy / d) * this.speed; }
         }
     }
-    apply(target) {
-        target.takeDamage(this.damage);
-        if (this.type === 'fire') target.burn(this.damage * 0.5);
-        if (this.type === 'ice') target.slow(0.4, 5000);
-        if (this.type === 'poison') target.poison(this.damage * 0.3);
+    apply(t) {
+        t.takeDamage(this.damage);
+        if (this.type === 'fire') t.burn(this.damage * 0.5);
+        if (this.type === 'ice') t.slow(0.4, 5000);
+        if (this.type === 'poison') t.poison(this.damage * 0.3);
     }
     draw(ctx) {
         ctx.save(); ctx.translate(this.x, this.y);
-        ctx.fillStyle = this.game.towerData[this.type].color;
-        switch (this.type) {
-            case 'fire': ctx.fillStyle = '#ff4500'; ctx.shadowBlur = 10; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill(); break;
-            case 'ice': ctx.fillStyle = '#00f2ff'; ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-4, -4); ctx.lineTo(-4, 4); ctx.fill(); break;
-            case 'lightning': ctx.strokeStyle = '#ffff00'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo((Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15); ctx.stroke(); break;
-            default: ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill();
-        }
-        ctx.restore();
+        ctx.fillStyle = '#fff';
+        if (this.type === 'fire') ctx.fillStyle = '#ff4500';
+        if (this.type === 'ice') ctx.fillStyle = '#00f2ff';
+        if (this.type === 'lightning') ctx.fillStyle = '#ffff00';
+        ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill(); ctx.restore();
     }
 }
 
@@ -586,5 +520,6 @@ class Particle {
     draw(ctx) { ctx.globalAlpha = this.life / 100; ctx.fillStyle = this.color; ctx.fillRect(this.x, this.y, 4, 4); ctx.globalAlpha = 1.0; }
 }
 
-const game = new Game();
-window.game = game;
+window.onload = () => {
+    window.game = new Game();
+};

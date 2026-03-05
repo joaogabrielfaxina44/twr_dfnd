@@ -121,6 +121,116 @@ body {
     width: 100%;
 }
 
+.announcement-text {
+    font-size: 3rem;
+    font-weight: 800;
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+    margin: 0;
+}
+
+.announcement-sub {
+    font-size: 1.2rem;
+    color: #ffd700;
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+}
+
+.menu-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: #fff;
+    opacity: 0.8;
+}
+
+.shop-item {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform 0.2s, background 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.shop-item:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateX(5px);
+}
+
+.shop-item.selected {
+    border-color: var(--primary);
+    box-shadow: 0 0 10px var(--primary);
+}
+
+.item-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--primary);
+    border-radius: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.2rem;
+}
+
+.item-info {
+    flex: 1;
+}
+
+.item-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.item-cost {
+    font-size: 0.8rem;
+    color: #ffd700;
+}
+
+.skill-btn {
+    position: relative;
+    background: linear-gradient(135deg, #1e1e2f, #2d2d44);
+    border: 1px solid var(--glass-border);
+    padding: 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.2s;
+    overflow: hidden;
+    color: #fff;
+    font-family: inherit;
+    text-align: left;
+}
+
+.skill-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.skill-cooldown {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 0%;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 1;
+    transition: height linear;
+}
+
+.wave-info {
+    text-align: center;
+    padding: 20px;
+    font-size: 1.5rem;
+    font-weight: 800;
+    background: linear-gradient(transparent, rgba(138, 43, 226, 0.1));
+    margin-top: auto;
+}
+
 /* Responsividade Mobile */
 @media (max-width: 768px),
 (orientation: portrait) {
