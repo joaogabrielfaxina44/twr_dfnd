@@ -27,6 +27,32 @@ body {
     background: radial-gradient(circle at top right, #1a1a2e, #0a0a0c);
 }
 
+#orientation-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #000;
+    z-index: 99999;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 20px;
+}
+
+@media screen and (orientation: portrait) {
+    #orientation-overlay {
+        display: flex;
+    }
+
+    #game-container {
+        display: none !important;
+    }
+}
+
 #game-container {
     position: relative;
     width: 100vw;
@@ -46,118 +72,73 @@ body {
 }
 
 #ui-panel {
-    width: 280px;
+    width: 250px;
     background: var(--glass-bg);
     border-left: 1px solid var(--glass-border);
     display: flex;
     flex-direction: column;
-    padding: 20px;
-    gap: 20px;
+    padding: 15px;
+    gap: 15px;
     backdrop-filter: blur(20px);
+    overflow-y: auto;
 }
 
 .hud-item {
     background: rgba(0, 0, 0, 0.3);
-    padding: 15px;
+    padding: 10px;
     border-radius: 12px;
     border: 1px solid var(--glass-border);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 1.1rem;
 }
 
 .hud-label {
     color: #aaa;
-    font-size: 0.8rem;
+    font-size: 0.7rem;
     text-transform: uppercase;
-    letter-spacing: 1px;
 }
 
 .hud-value {
     font-weight: 700;
     color: var(--accent);
+    font-size: 1.1rem;
 }
 
 .ui-scroll-area {
-    flex: 1;
-    overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 20px;
-    padding-right: 10px;
-}
-
-.ui-scroll-area::-webkit-scrollbar {
-    width: 6px;
-}
-
-.ui-scroll-area::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
-}
-
-.ui-scroll-area::-webkit-scrollbar-thumb {
-    background: var(--primary);
-    border-radius: 10px;
+    gap: 15px;
 }
 
 #towers-menu,
 #skills-menu {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-}
-
-#announcement {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 500;
-    pointer-events: none;
-    text-align: center;
-    opacity: 0;
-    transition: opacity 0.5s;
-    width: 100%;
-}
-
-.announcement-text {
-    font-size: 3rem;
-    font-weight: 800;
-    color: var(--accent);
-    text-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
-    margin: 0;
-}
-
-.announcement-sub {
-    font-size: 1.2rem;
-    color: #ffd700;
-    text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+    gap: 8px;
 }
 
 .menu-title {
-    font-size: 1rem;
+    font-size: 0.8rem;
     font-weight: 600;
-    margin-bottom: 5px;
     color: #fff;
-    opacity: 0.8;
+    opacity: 0.7;
 }
 
 .shop-item {
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
-    padding: 10px;
+    padding: 8px;
     border-radius: 10px;
     cursor: pointer;
-    transition: transform 0.2s, background 0.2s;
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 10px;
+    transition: all 0.2s;
 }
 
 .shop-item:hover {
     background: rgba(255, 255, 255, 0.15);
-    transform: translateX(5px);
 }
 
 .shop-item.selected {
@@ -166,14 +147,13 @@ body {
 }
 
 .item-icon {
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
     background: var(--primary);
-    border-radius: 8px;
+    border-radius: 6px;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 1.2rem;
 }
 
 .item-info {
@@ -181,12 +161,13 @@ body {
 }
 
 .item-name {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     font-weight: 600;
+    display: block;
 }
 
 .item-cost {
-    font-size: 0.8rem;
+    font-size: 0.7rem;
     color: #ffd700;
 }
 
@@ -194,20 +175,17 @@ body {
     position: relative;
     background: linear-gradient(135deg, #1e1e2f, #2d2d44);
     border: 1px solid var(--glass-border);
-    padding: 12px;
-    border-radius: 10px;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    transition: all 0.2s;
-    overflow: hidden;
+    padding: 10px;
+    border-radius: 8px;
     color: #fff;
     font-family: inherit;
     text-align: left;
+    cursor: pointer;
+    overflow: hidden;
 }
 
 .skill-btn:disabled {
-    opacity: 0.5;
+    opacity: 0.4;
     cursor: not-allowed;
 }
 
@@ -215,90 +193,46 @@ body {
     position: absolute;
     bottom: 0;
     left: 0;
-    height: 0%;
     width: 100%;
+    height: 0%;
     background: rgba(0, 0, 0, 0.6);
-    z-index: 1;
     transition: height linear;
 }
 
 .wave-info {
     text-align: center;
-    padding: 20px;
-    font-size: 1.5rem;
-    font-weight: 800;
-    background: linear-gradient(transparent, rgba(138, 43, 226, 0.1));
+    padding: 15px;
+    background: rgba(138, 43, 226, 0.1);
     margin-top: auto;
 }
 
-/* Responsividade Mobile */
-@media (max-width: 768px),
-(orientation: portrait) {
-    #game-container {
-        flex-direction: column;
-    }
-
+/* Landscape Mobile Tweaks */
+@media screen and (max-height: 500px) {
     #ui-panel {
-        width: 100%;
-        height: 180px;
-        flex-direction: row;
+        width: 180px;
         padding: 10px;
         gap: 10px;
-        overflow-x: auto;
-        border-left: none;
-        border-top: 1px solid var(--glass-border);
     }
 
     .hud-item {
-        min-width: 120px;
-        padding: 8px;
-        font-size: 0.9rem;
-    }
-
-    .ui-scroll-area {
-        flex-direction: row;
-        padding-right: 0;
-        overflow-y: hidden;
-        overflow-x: auto;
-    }
-
-    #towers-menu,
-    #skills-menu {
-        flex-direction: row;
+        padding: 5px;
     }
 
     .shop-item {
-        min-width: 140px;
-        flex-shrink: 0;
+        padding: 5px;
     }
 
-    .skill-btn {
-        min-width: 120px;
-        flex-shrink: 0;
+    .item-icon {
+        width: 24px;
+        height: 24px;
+        font-size: 0.8rem;
     }
 
-    .wave-info {
-        padding: 10px;
-        font-size: 1.1rem;
-        min-width: 80px;
-    }
-
-    .announcement-text {
-        font-size: 2rem;
-    }
-
-    #upgrade-overlay {
-        padding: 15px !important;
-        scale: 1.2;
-    }
-
-    #upgrade-overlay button {
-        padding: 10px 15px !important;
-        margin: 5px !important;
+    #ui-panel h1 {
+        display: none;
     }
 }
 
-/* Animations */
 @keyframes pulse {
     0% {
         transform: scale(1);
@@ -313,7 +247,14 @@ body {
     }
 }
 
-.high-wave {
-    animation: pulse 2s infinite;
-    color: var(--secondary);
+#announcement {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.5s;
+    z-index: 1000;
 }
