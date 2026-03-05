@@ -59,6 +59,7 @@ class Game {
         };
 
         this.init();
+        this.setupBackground();
     }
 
     init() {
@@ -72,6 +73,76 @@ class Game {
         document.getElementById('start-screen').style.display = 'none';
         this.lastTime = performance.now();
         requestAnimationFrame((time) => this.loop(time));
+    }
+
+    setupBackground() {
+        this.bgCanvas = document.createElement('canvas');
+        this.bgCanvas.width = 800;
+        this.bgCanvas.height = 600;
+        const bctx = this.bgCanvas.getContext('2d');
+
+        // Draw Grass/Forest Ground
+        bctx.fillStyle = '#2e7d32'; // Dark Forest Green
+        bctx.fillRect(0, 0, 800, 600);
+
+        // Add noise/texture to grass
+        for (let i = 0; i < 2000; i++) {
+            const x = Math.random() * 800;
+            const y = Math.random() * 600;
+            const size = 1 + Math.random() * 2;
+            bctx.fillStyle = Math.random() > 0.5 ? '#388e3c' : '#2b6a2d';
+            bctx.fillRect(x, y, size, size);
+        }
+
+        // Add some "Pixel Art" grass blades
+        for (let i = 0; i < 400; i++) {
+            const x = Math.random() * 800;
+            const y = Math.random() * 600;
+            bctx.fillStyle = '#4caf50';
+            bctx.fillRect(x, y, 2, 4);
+            bctx.fillRect(x + 1, y + 1, 1, 3);
+        }
+
+        // Add occasional stones or flowers
+        for (let i = 0; i < 50; i++) {
+            const x = Math.random() * 800;
+            const y = Math.random() * 600;
+            if (Math.random() > 0.5) {
+                bctx.fillStyle = '#9e9e9e'; // Stone
+                bctx.beginPath();
+                bctx.arc(x, y, 2 + Math.random() * 3, 0, Math.PI * 2);
+                bctx.fill();
+            } else {
+                bctx.fillStyle = '#ffeb3b'; // Flower
+                bctx.fillRect(x, y, 3, 3);
+            }
+        }
+
+        // Draw THE PATH on the background canvas for optimization
+        bctx.strokeStyle = '#795548'; // Dirt Brown
+        bctx.lineWidth = 44;
+        bctx.lineCap = 'round';
+        bctx.lineJoin = 'round';
+        bctx.beginPath();
+        bctx.moveTo(this.path[0].x, this.path[0].y);
+        this.path.forEach(p => bctx.lineTo(p.x, p.y));
+        bctx.stroke();
+
+        // Path Inner Highlight (Texture)
+        bctx.strokeStyle = '#8d6e63';
+        bctx.lineWidth = 36;
+        bctx.stroke();
+
+        // Add stones and wear to the path
+        for (let i = 0; i < 1500; i++) {
+            const px = Math.random() * 800;
+            const py = Math.random() * 600;
+            // Only draw if near the path
+            if (this.isNearPath(px, py, 22)) {
+                bctx.fillStyle = Math.random() > 0.7 ? '#5d4037' : '#9c7e6e';
+                bctx.fillRect(px, py, 2, 2);
+            }
+        }
     }
 
     updateHUD() {
@@ -367,21 +438,9 @@ class Game {
 
     draw() {
         const { ctx } = this;
-        ctx.clearRect(0, 0, 800, 600);
 
-        // Draw Map/Path
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 40;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.beginPath();
-        ctx.moveTo(this.path[0].x, this.path[0].y);
-        this.path.forEach(p => ctx.lineTo(p.x, p.y));
-        ctx.stroke();
-
-        ctx.strokeStyle = '#444';
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        // Use the pre-rendered background
+        ctx.drawImage(this.bgCanvas, 0, 0);
 
         // Draw Entities
         this.enemies.forEach(e => e.draw(ctx));
@@ -392,34 +451,44 @@ class Game {
         // Placement ghost
         if (this.towerToPlace) {
             ctx.globalAlpha = 0.4;
-            ctx.fillStyle = this.isNearPath(this.towerToPlace.x, this.towerToPlace.y, 40) ? 'red' : 'green';
+            ctx.fillStyle = this.isNearPath(this.towerToPlace.x, this.towerToPlace.y, 40) ? 'rgba(255,0,0,0.5)' : 'rgba(0,255,0,0.3)';
             ctx.beginPath();
             ctx.arc(this.towerToPlace.x, this.towerToPlace.y, 20, 0, Math.PI * 2);
             ctx.fill();
             // Range indicator
             ctx.strokeStyle = 'white';
+            ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.arc(this.towerToPlace.x, this.towerToPlace.y, 150, 0, Math.PI * 2);
             ctx.stroke();
             ctx.globalAlpha = 1.0;
         }
 
-        // Castle marker
-        ctx.fillStyle = '#ff4d4d';
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = '#ff4d4d';
-        ctx.beginPath();
-        ctx.arc(this.path[this.path.length - 1].x, this.path[this.path.length - 1].y, 30, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
+        // Castle marker (Visible high detail)
+        ctx.save();
+        const castleX = this.path[this.path.length - 1].x;
+        const castleY = this.path[this.path.length - 1].y;
+        ctx.translate(castleX, castleY);
+        // Base
+        ctx.fillStyle = '#455a64';
+        ctx.fillRect(-25, -20, 50, 40);
+        // Towers
+        ctx.fillStyle = '#607d8b';
+        ctx.fillRect(-30, -30, 15, 30);
+        ctx.fillRect(15, -30, 15, 30);
+        // Red Roofs
+        ctx.fillStyle = '#b71c1c';
+        ctx.beginPath(); ctx.moveTo(-32, -30); ctx.lineTo(-22, -45); ctx.lineTo(-12, -30); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(13, -30); ctx.lineTo(23, -45); ctx.lineTo(33, -30); ctx.fill();
+        ctx.restore();
 
         // Wave Counter on Canvas
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-        ctx.fillRect(10, 10, 120, 40);
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 20px Outfit';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillRect(10, 10, 130, 45);
+        ctx.fillStyle = '#00fa9a';
+        ctx.font = 'bold 22px Outfit';
         ctx.textAlign = 'left';
-        ctx.fillText(`ONDA: ${this.wave}`, 20, 37);
+        ctx.fillText(`ONDA: ${this.wave}`, 20, 42);
     }
 
     gameOver() {
