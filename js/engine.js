@@ -668,27 +668,135 @@ class Tower {
     }
 
     draw(ctx) {
-        ctx.fillStyle = this.color;
-        ctx.shadowBlur = this.level * 2;
-        ctx.shadowColor = this.color;
+        const { x, y, color, type, level } = this;
+        ctx.save();
+        ctx.translate(x, y);
 
-        // Base
+        // Tower Base (Universal)
+        ctx.fillStyle = '#1a1a1a';
         ctx.beginPath();
-        ctx.arc(this.x, this.y, 18, 0, Math.PI * 2);
+        ctx.rect(-18, -18, 36, 36);
         ctx.fill();
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.stroke();
 
-        // Cannon head
-        ctx.fillStyle = '#333';
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, 10, 0, Math.PI * 2);
-        ctx.fill();
+        switch (type) {
+            case 'cannon':
+                // Wooden Platform
+                ctx.fillStyle = '#5d4037';
+                ctx.fillRect(-15, -15, 30, 30);
+                // Metal barrel
+                ctx.fillStyle = '#424242';
+                ctx.beginPath();
+                ctx.arc(0, 0, 10, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#212121';
+                ctx.stroke();
+                break;
 
-        ctx.shadowBlur = 0;
+            case 'ice':
+                // Crystal Base
+                ctx.fillStyle = '#1565c0';
+                ctx.beginPath();
+                ctx.moveTo(0, -18);
+                ctx.lineTo(15, 0);
+                ctx.lineTo(0, 18);
+                ctx.lineTo(-15, 0);
+                ctx.closePath();
+                ctx.fill();
+                // Glowing Crystal
+                ctx.fillStyle = '#4fc3f7';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#4fc3f7';
+                ctx.beginPath();
+                ctx.moveTo(0, -12);
+                ctx.lineTo(10, 0);
+                ctx.lineTo(0, 12);
+                ctx.lineTo(-10, 0);
+                ctx.closePath();
+                ctx.fill();
+                break;
 
+            case 'fire':
+                // Volcanic Altar
+                ctx.fillStyle = '#212121';
+                ctx.fillRect(-14, -14, 28, 28);
+                // Pulsing Flame
+                const pulse = Math.sin(Date.now() / 200) * 3;
+                ctx.fillStyle = '#ff3d00';
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#ff3d00';
+                ctx.beginPath();
+                ctx.arc(0, 0, 8 + pulse, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#ffea00';
+                ctx.beginPath();
+                ctx.arc(0, 0, 4 + pulse / 2, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+
+            case 'poison':
+                // Alchemy Base
+                ctx.fillStyle = '#455a64';
+                ctx.fillRect(-15, -10, 30, 20);
+                // Bubbling Vat
+                ctx.fillStyle = '#32cd32';
+                ctx.beginPath();
+                ctx.arc(0, 0, 12, 0, Math.PI * 2);
+                ctx.fill();
+                // Bubbles
+                const b = (Date.now() / 500) % 1;
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                ctx.beginPath();
+                ctx.arc(-4, -4 + (b * 4), 2, 0, Math.PI * 2);
+                ctx.arc(4, 4 - (b * 6), 3, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+
+            case 'lightning':
+                // Tesla Coil
+                ctx.fillStyle = '#78909c';
+                ctx.fillRect(-3, -15, 6, 30);
+                ctx.fillRect(-15, -15, 30, 4);
+                ctx.fillRect(-15, 11, 30, 4);
+                // Energy Ball
+                ctx.fillStyle = '#ffff00';
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = '#ffff00';
+                ctx.beginPath();
+                ctx.arc(0, 0, 8, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+
+            case 'magic':
+                // Runestone
+                ctx.fillStyle = '#4a148c';
+                ctx.beginPath();
+                ctx.arc(0, 0, 16, 0, Math.PI * 2);
+                ctx.fill();
+                // Floating Crystal
+                const hover = Math.sin(Date.now() / 300) * 5;
+                ctx.fillStyle = '#ea80fc';
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#ea80fc';
+                ctx.beginPath();
+                ctx.moveTo(0, -10 + hover);
+                ctx.lineTo(8, hover);
+                ctx.lineTo(0, 10 + hover);
+                ctx.lineTo(-8, hover);
+                ctx.closePath();
+                ctx.fill();
+                break;
+        }
+
+        ctx.restore();
+
+        // Level text
         ctx.fillStyle = '#fff';
-        ctx.font = '12px Arial';
+        ctx.font = 'bold 10px Outfit';
         ctx.textAlign = 'center';
-        ctx.fillText(this.level, this.x, this.y + 4);
+        ctx.fillText(`LVL ${level}`, x, y + 28);
     }
 }
 
@@ -767,10 +875,89 @@ class Projectile {
     }
 
     draw(ctx) {
-        ctx.fillStyle = this.game.towerData[this.type].color;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, 5, 0, Math.PI * 2);
-        ctx.fill();
+        const { x, y, type } = this;
+        ctx.save();
+        ctx.translate(x, y);
+
+        switch (type) {
+            case 'cannon':
+                ctx.fillStyle = '#333';
+                ctx.beginPath();
+                ctx.arc(0, 0, 4, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+
+            case 'fire':
+                const fSize = 6 + Math.random() * 4;
+                ctx.fillStyle = '#ff4500';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#ff4500';
+                ctx.beginPath();
+                ctx.arc(0, 0, fSize, 0, Math.PI * 2);
+                ctx.fill();
+                // Inner core
+                ctx.fillStyle = '#ffff00';
+                ctx.beginPath();
+                ctx.arc(0, 0, fSize * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+
+            case 'ice':
+                ctx.fillStyle = '#00f2ff';
+                ctx.shadowBlur = 5;
+                ctx.shadowColor = '#00f2ff';
+                ctx.rotate(Math.atan2(this.vy || 1, this.vx || 1));
+                ctx.beginPath();
+                ctx.moveTo(8, 0);
+                ctx.lineTo(-4, -4);
+                ctx.lineTo(-4, 4);
+                ctx.closePath();
+                ctx.fill();
+                break;
+
+            case 'lightning':
+                ctx.strokeStyle = '#ffff00';
+                ctx.lineWidth = 3;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#ffff00';
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                for (let i = 0; i < 3; i++) {
+                    ctx.lineTo((Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15);
+                }
+                ctx.stroke();
+                break;
+
+            case 'poison':
+                ctx.fillStyle = '#32cd32';
+                ctx.globalAlpha = 0.6;
+                ctx.beginPath();
+                ctx.arc(0, 0, 8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+                break;
+
+            case 'magic':
+                ctx.fillStyle = '#ea80fc';
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#ea80fc';
+                ctx.beginPath();
+                ctx.arc(0, 0, 6, 0, Math.PI * 2);
+                ctx.fill();
+                // Aura particles
+                for (let i = 0; i < 3; i++) {
+                    ctx.fillRect((Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10, 2, 2);
+                }
+                break;
+
+            default:
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(0, 0, 3, 0, Math.PI * 2);
+                ctx.fill();
+        }
+
+        ctx.restore();
     }
 }
 
