@@ -70,7 +70,9 @@ class Game {
             this.handleInput(touch.clientX, touch.clientY, false);
         }, { passive: false });
 
-        window.addEventListener('resize', () => this.updateHUD());
+        window.addEventListener('resize', () => {
+            this.updateHUD();
+        });
         this.updateHUD();
     }
 
@@ -83,11 +85,11 @@ class Game {
         // Forest Grass
         bctx.fillStyle = '#2e7d32';
         bctx.fillRect(0, 0, 800, 600);
-        for (let i = 0; i < 2000; i++) {
-            bctx.fillStyle = Math.random() > 0.5 ? '#388e3c' : '#2b6a2d';
+        for (let i = 0; i < 3000; i++) {
+            bctx.fillStyle = Math.random() > 0.5 ? '#1b5e20' : '#388e3c';
             bctx.fillRect(Math.random() * 800, Math.random() * 600, 2, 2);
         }
-        for (let i = 0; i < 400; i++) {
+        for (let i = 0; i < 500; i++) {
             bctx.fillStyle = '#4caf50';
             bctx.fillRect(Math.random() * 800, Math.random() * 600, 2, 4);
         }
@@ -106,7 +108,8 @@ class Game {
         bctx.lineWidth = 36;
         bctx.stroke();
 
-        for (let i = 0; i < 1000; i++) {
+        // Path stones
+        for (let i = 0; i < 1500; i++) {
             const x = Math.random() * 800, y = Math.random() * 600;
             if (this.isNearPath(x, y, 22)) {
                 bctx.fillStyle = Math.random() > 0.7 ? '#5d4037' : '#9c7e6e';
@@ -127,7 +130,6 @@ class Game {
         const goldVal = document.getElementById('gold-value');
         const hpVal = document.getElementById('hp-value');
         const waveNum = document.getElementById('wave-number');
-
         if (goldVal) goldVal.innerText = Math.floor(this.gold);
         if (hpVal) hpVal.innerText = Math.max(0, this.hp);
         if (waveNum) waveNum.innerText = this.wave;
@@ -154,11 +156,8 @@ class Game {
     handleInput(clientX, clientY, isClick) {
         if (!this.canvas) return;
         const rect = this.canvas.getBoundingClientRect();
-
-        // Mapeia coordenadas para o mundo lógico de 800x600 do jogo
         const x = (clientX - rect.left) * (800 / rect.width);
         const y = (clientY - rect.top) * (600 / rect.height);
-
         if (isClick) this.processClick(x, y, clientX, clientY);
         else this.towerToPlace = this.selectedTowerType ? { x, y, type: this.selectedTowerType } : null;
     }
@@ -183,8 +182,6 @@ class Game {
                 this.towerLimits[this.selectedTowerType]++;
                 this.selectTowerType(null);
                 this.updateHUD();
-            } else if (this.towerLimits[this.selectedTowerType] >= 5) {
-                this.announce("LIMITE ATINGIDO", "Máximo 5 torres deste tipo!");
             }
         }
     }
@@ -217,12 +214,9 @@ class Game {
         overlay.style.display = 'block';
         overlay.style.left = screenX + 'px';
         overlay.style.top = (screenY - 60) + 'px';
-        info.innerHTML = `Nível: ${tower.level}/7<br>Next: +${(tower.damage * 0.4).toFixed(1)} Dano`;
+        info.innerHTML = `Nível: ${tower.level}/7<br>Próximo: +${(tower.damage * 0.4).toFixed(1)} Dano`;
         const btn = overlay.querySelector('button');
-        if (btn) {
-            btn.innerText = tower.level >= 7 ? "MAX" : `UPGRADE ($${tower.getUpgradeCost()})`;
-            btn.disabled = tower.level >= 7;
-        }
+        if (btn) btn.innerText = tower.level >= 7 ? "MAX" : `MELHORAR ($${tower.getUpgradeCost()})`;
     }
 
     upgradeSelectedTower() {
@@ -230,8 +224,7 @@ class Game {
             this.gold -= this.selectedActiveTower.getUpgradeCost();
             this.selectedActiveTower.upgrade();
             this.updateHUD();
-            const overlay = document.getElementById('upgrade-overlay');
-            if (overlay) overlay.style.display = 'none';
+            document.getElementById('upgrade-overlay').style.display = 'none';
         }
     }
 
@@ -241,8 +234,7 @@ class Game {
             this.towerLimits[this.selectedActiveTower.type]--;
             this.towers = this.towers.filter(t => t !== this.selectedActiveTower);
             this.updateHUD();
-            const overlay = document.getElementById('upgrade-overlay');
-            if (overlay) overlay.style.display = 'none';
+            document.getElementById('upgrade-overlay').style.display = 'none';
         }
     }
 
@@ -427,7 +419,8 @@ class Enemy {
             case 'spawn':
                 const pl = Math.sin(Date.now() / 300) * 3;
                 ctx.globalAlpha = 0.6; ctx.fillStyle = '#9c27b0'; ctx.beginPath(); ctx.arc(0, bob, 15 + pl, 0, Math.PI * 2); ctx.fill();
-                ctx.globalAlpha = 1.0; ctx.fillStyle = '#e1bee7'; ctx.beginPath(); ctx.arc(-5 + pl, -5, 4, 0, Math.PI * 2); ctx.fill(); ctx.restore(); return; // Extra restore safe
+                ctx.globalAlpha = 1.0; ctx.fillStyle = '#e1bee7'; ctx.beginPath(); ctx.arc(-5 + pl, -5, 4, 0, Math.PI * 2); ctx.fill();
+                break;
             case 'shielded':
                 ctx.fillStyle = '#616161'; ctx.fillRect(-10, -10 + bob, 20, 20);
                 ctx.fillStyle = '#212121'; ctx.fillRect(-16, -15 + bob, 10, 30);
@@ -468,12 +461,24 @@ class Tower {
         ctx.save(); ctx.translate(this.x, this.y);
         ctx.fillStyle = '#1a1a1a'; ctx.beginPath(); ctx.rect(-18, -18, 36, 36); ctx.fill();
         switch (this.type) {
-            case 'cannon': ctx.fillStyle = '#5d4037'; ctx.fillRect(-15, -15, 30, 30); ctx.fillStyle = '#424242'; ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI * 2); ctx.fill(); break;
-            case 'ice': ctx.fillStyle = '#1565c0'; ctx.beginPath(); ctx.moveTo(0, -18); ctx.lineTo(15, 0); ctx.lineTo(0, 18); ctx.lineTo(-15, 0); ctx.closePath(); ctx.fill(); break;
-            case 'fire': ctx.fillStyle = '#212121'; ctx.fillRect(-14, -14, 28, 28); const p = Math.sin(Date.now() / 200) * 3; ctx.fillStyle = '#ff3d00'; ctx.beginPath(); ctx.arc(0, 0, 8 + p, 0, Math.PI * 2); ctx.fill(); break;
-            case 'poison': ctx.fillStyle = '#455a64'; ctx.fillRect(-15, -10, 30, 20); ctx.fillStyle = '#32cd32'; ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.fill(); break;
-            case 'lightning': ctx.fillStyle = '#78909c'; ctx.fillRect(-3, -15, 6, 30); ctx.fillStyle = '#ffff00'; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill(); break;
-            case 'magic': ctx.fillStyle = '#4a148c'; ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2); ctx.fill(); break;
+            case 'cannon':
+                ctx.fillStyle = '#5d4037'; ctx.fillRect(-15, -15, 30, 30);
+                ctx.fillStyle = '#424242'; ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI * 2); ctx.fill(); break;
+            case 'ice':
+                ctx.fillStyle = '#1565c0'; ctx.beginPath(); ctx.moveTo(0, -18); ctx.lineTo(15, 0); ctx.lineTo(0, 18); ctx.lineTo(-15, 0); ctx.closePath(); ctx.fill();
+                ctx.fillStyle = '#4fc3f7'; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); ctx.fill(); break;
+            case 'fire':
+                ctx.fillStyle = '#212121'; ctx.fillRect(-14, -14, 28, 28);
+                const p = Math.sin(Date.now() / 200) * 3; ctx.fillStyle = '#ff3d00'; ctx.beginPath(); ctx.arc(0, 0, 8 + p, 0, Math.PI * 2); ctx.fill(); break;
+            case 'poison':
+                ctx.fillStyle = '#455a64'; ctx.fillRect(-15, -10, 30, 20);
+                ctx.fillStyle = '#32cd32'; ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.fill(); break;
+            case 'lightning':
+                ctx.fillStyle = '#78909c'; ctx.fillRect(-3, -15, 6, 30);
+                ctx.fillStyle = '#ffff00'; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill(); break;
+            case 'magic':
+                ctx.fillStyle = '#4a148c'; ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#ea80fc'; ctx.beginPath(); ctx.rect(-6, -6, 12, 12); ctx.fill(); break;
         }
         ctx.restore();
         ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Outfit'; ctx.textAlign = 'center'; ctx.fillText(`LVL ${this.level}`, this.x, this.y + 28);
