@@ -475,116 +475,168 @@ class Tower {
         ctx.save(); ctx.translate(this.x, this.y);
         const time = Date.now();
         const float = Math.sin(time / 400) * 3;
+        const level = this.level;
 
-        // Base de Pedra Comum
-        ctx.fillStyle = '#37474f';
-        ctx.fillRect(-18, -2, 36, 20);
-        ctx.fillStyle = '#263238';
-        ctx.fillRect(-20, 16, 40, 4);
+        // Base de Pedra - Evolui com o nível
+        ctx.fillStyle = level >= 7 ? '#4527a0' : (level >= 3 ? '#546e7a' : '#37474f');
+        ctx.fillRect(-20, -2, 40, 22);
+        ctx.fillStyle = level >= 7 ? '#311b92' : (level >= 3 ? '#37474f' : '#263238');
+        ctx.fillRect(-22, 16, 44, 4);
+
+        // Detalhes de Filigrana (Nível 3+)
+        if (level >= 3) {
+            ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 1;
+            ctx.strokeRect(-18, 0, 36, 18);
+        }
 
         switch (this.type) {
             case 'cannon':
-                // Fortaleza Móvel (Siege Cannon)
-                ctx.fillStyle = '#4e342e'; ctx.fillRect(-15, -12, 30, 15); // Base madeira
-                ctx.fillStyle = '#795548'; ctx.fillRect(-12, -8, 24, 10);
-                // Engrenagens
-                ctx.save(); ctx.translate(-10, 5); ctx.rotate(time / 500);
-                ctx.fillStyle = '#212121'; ctx.fillRect(-4, -4, 8, 8); ctx.restore();
-                ctx.save(); ctx.translate(10, 5); ctx.rotate(-time / 500);
-                ctx.fillStyle = '#212121'; ctx.fillRect(-4, -4, 8, 8); ctx.restore();
-                // Cano Duplo
-                ctx.fillStyle = '#cd7f32'; // Bronze
-                ctx.fillRect(-12, -22 + (this.muzzleFlash > 0 ? 5 : 0), 8, 18);
-                ctx.fillRect(4, -22 + (this.muzzleFlash > 0 ? 5 : 0), 8, 18);
+                // Nível 1: Fortaleza Móvel | Nível 3: Canhão Triplo | Nível 7: Siege Engine Rotativo
+                ctx.fillStyle = level >= 7 ? '#212121' : '#4e342e';
+                ctx.fillRect(-15, -12, 30, 15);
+
+                // Engrenagens e Vapor (Mais complexo no Nível 7)
+                const gearCount = level >= 7 ? 4 : 2;
+                for (let i = 0; i < gearCount; i++) {
+                    ctx.save();
+                    ctx.translate(i % 2 === 0 ? -12 : 12, i < 2 ? 5 : -5);
+                    ctx.rotate(i % 2 === 0 ? time / 500 : -time / 500);
+                    ctx.fillStyle = '#bcaaa4';
+                    ctx.fillRect(-4, -4, 8, 8);
+                    ctx.restore();
+                }
+
+                // Canos
+                const barrels = level >= 7 ? 6 : (level >= 3 ? 3 : 2);
+                ctx.fillStyle = level >= 7 ? '#b0bec5' : '#cd7f32';
+                for (let i = 0; i < barrels; i++) {
+                    const offset = (i - (barrels - 1) / 2) * (level >= 7 ? 6 : 8);
+                    const recoil = this.muzzleFlash > 0 ? 5 : 0;
+                    ctx.fillRect(offset - 3, -25 + recoil, 6, 20);
+                }
+
                 if (this.muzzleFlash > 0) {
-                    ctx.fillStyle = '#ffeb3b'; ctx.beginPath(); ctx.arc(-8, -25, 8, 0, Math.PI * 2); ctx.arc(8, -25, 8, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#ffeb3b';
+                    ctx.beginPath(); ctx.arc(0, -30, 15, 0, Math.PI * 2); ctx.fill();
                 }
                 break;
 
             case 'ice':
-                // Obelisco Glacial (Ice Pinnacle)
-                ctx.fillStyle = '#bbdefb'; ctx.beginPath();
-                ctx.moveTo(0, -35 + float); ctx.lineTo(12, -10 + float); ctx.lineTo(-12, -10 + float); ctx.fill();
-                // Cristais Flutuantes
-                for (let i = 0; i < 3; i++) {
-                    const angle = (time / 600) + (i * Math.PI * 2 / 3);
-                    const cx = Math.cos(angle) * 18, cy = Math.sin(angle) * 8 - 15;
-                    ctx.fillStyle = '#e3f2fd'; ctx.fillRect(cx - 3, cy - 3, 6, 6);
+                // Nível 1: Obelisco | Nível 3: Cristais Etch | Nível 7: Glacial Palace
+                ctx.fillStyle = level >= 7 ? '#e3f2fd' : '#bbdefb';
+                if (level >= 7) {
+                    ctx.beginPath(); ctx.moveTo(0, -45 + float); ctx.lineTo(20, -10 + float); ctx.lineTo(-20, -10 + float); ctx.fill();
+                } else {
+                    ctx.beginPath(); ctx.moveTo(0, -35 + float); ctx.lineTo(12, -10 + float); ctx.lineTo(-12, -10 + float); ctx.fill();
                 }
-                // Núcleo brilhante
-                ctx.shadowBlur = 10; ctx.shadowColor = '#00bfff';
-                ctx.fillStyle = '#00bfff'; ctx.beginPath(); ctx.arc(0, -15 + float, 5, 0, Math.PI * 2); ctx.fill();
+
+                // Cristais Orbitais (Aumentam com o nível)
+                const crystalCount = level >= 7 ? 6 : (level >= 3 ? 4 : 2);
+                for (let i = 0; i < crystalCount; i++) {
+                    const dist = level >= 7 ? 25 : 18;
+                    const angle = (time / (level >= 7 ? 400 : 600)) + (i * Math.PI * 2 / crystalCount);
+                    const cx = Math.cos(angle) * dist, cy = Math.sin(angle) * (dist / 2) - 15;
+                    ctx.fillStyle = level >= 7 ? '#fff' : '#e3f2fd';
+                    ctx.fillRect(cx - 3, cy - 3, 6, 6);
+                    if (level >= 7) { // Glow effects
+                        ctx.shadowBlur = 5; ctx.shadowColor = '#00bfff';
+                        ctx.strokeRect(cx - 4, cy - 4, 8, 8);
+                    }
+                }
+
+                ctx.shadowBlur = 15; ctx.shadowColor = '#00bfff';
+                ctx.fillStyle = '#00bfff'; ctx.beginPath(); ctx.arc(0, -15 + float, 5 + level, 0, Math.PI * 2); ctx.fill();
+                ctx.shadowBlur = 0;
                 break;
 
             case 'fire':
-                // Altar de Magma (Volcano Forge)
-                ctx.fillStyle = '#212121'; ctx.fillRect(-15, -15, 30, 20); // Obsidiana
-                const pulse = (Math.sin(time / 200) + 1) / 2;
-                // Lava escorrendo
-                ctx.fillStyle = `rgba(255, 69, 0, ${0.5 + pulse * 0.5})`;
-                ctx.fillRect(-12, -5, 4, 15); ctx.fillRect(8, -5, 4, 15);
-                // Bacia de Fogo
-                ctx.fillStyle = '#bf360c'; ctx.beginPath(); ctx.ellipse(0, -15, 12, 6, 0, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = '#ff4500'; ctx.beginPath(); ctx.arc(0, -18, 6 + pulse * 4, 0, Math.PI * 2); ctx.fill();
-                if (this.muzzleFlash > 0) {
-                    ctx.fillStyle = '#ffeb3b'; ctx.beginPath(); ctx.arc(0, -30, 15, 0, Math.PI * 2); ctx.fill();
+                // Nível 1: Altar | Nível 3: Altar Ornado | Nível 7: Magma Fortress
+                ctx.fillStyle = level >= 7 ? '#1a0f0e' : '#212121';
+                ctx.fillRect(-18, -15, 36, 20);
+
+                const pulseF = (Math.sin(time / 200) + 1) / 2;
+                // Lava Cascades (Aumenta no Nível 7)
+                ctx.fillStyle = '#ff4500';
+                const streams = level >= 7 ? 4 : 2;
+                for (let i = 0; i < streams; i++) {
+                    const sOffset = (i - (streams - 1) / 2) * 12;
+                    ctx.fillRect(sOffset - 2, -5, 4, 15 + pulseF * 5);
+                }
+
+                // Top Basin
+                ctx.fillStyle = '#bf360c';
+                ctx.beginPath(); ctx.ellipse(0, -15, 15, 8, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#ff4500';
+                ctx.beginPath(); ctx.arc(0, -18, 8 + pulseF * 6, 0, Math.PI * 2); ctx.fill();
+
+                if (level >= 7) { // Heat haze/smoke
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                    ctx.fillRect(-10, -40 + float, 20, 10);
                 }
                 break;
 
             case 'poison':
-                // Destilaria Tóxica (Plague Lab)
+                // Nível 1: Destilaria | Nível 3: Tanques Múltiplos | Nível 7: Majestic Distillery
                 ctx.fillStyle = '#3e2723'; ctx.fillRect(-15, -10, 30, 15);
-                // Tanque Green
-                ctx.fillStyle = '#1b5e20'; ctx.fillRect(-8, -25, 16, 18);
-                const bubble = Math.sin(time / 150) * 2;
-                ctx.fillStyle = '#4caf50'; ctx.fillRect(-6, -20 + bubble, 12, 10);
-                // Canos de Cobre
-                ctx.strokeStyle = '#a1887f'; ctx.lineWidth = 3;
-                ctx.beginPath(); ctx.moveTo(-15, -5); ctx.lineTo(-20, -15); ctx.lineTo(-12, -20); ctx.stroke();
-                if (this.muzzleFlash > 0) {
-                    ctx.fillStyle = '#ccff90'; ctx.beginPath(); ctx.arc(0, -30, 10, 0, Math.PI * 2); ctx.fill();
+
+                const tankCount = level >= 7 ? 3 : (level >= 3 ? 2 : 1);
+                for (let i = 0; i < tankCount; i++) {
+                    const tx = (i - (tankCount - 1) / 2) * 12;
+                    ctx.fillStyle = '#1b5e20'; ctx.fillRect(tx - 5, -28, 10, 20);
+                    const bbl = Math.sin(time / 150 + i) * 3;
+                    ctx.fillStyle = level >= 7 ? '#ccff90' : '#4caf50';
+                    ctx.fillRect(tx - 3, -24 + bbl, 6, 12);
+                }
+
+                // Extra Pipes (Nível 7)
+                if (level >= 7) {
+                    ctx.strokeStyle = '#a1887f'; ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.moveTo(-18, 0); ctx.lineTo(-25, -20); ctx.lineTo(0, -35); ctx.stroke();
                 }
                 break;
 
             case 'lightning':
-                // Torre de Tesla (Storm Coil)
-                ctx.fillStyle = '#546e7a'; ctx.fillRect(-4, -25, 8, 30);
-                // Anéis de Cobre
-                ctx.fillStyle = '#bcaaa4';
-                for (let i = 0; i < 3; i++) {
-                    ctx.fillRect(-10, -22 + (i * 8), 20, 3);
+                // Nível 1: Tesla | Nível 3: Ornate Rings | Nível 7: Lightning Fortress
+                ctx.fillStyle = level >= 7 ? '#263238' : '#546e7a';
+                ctx.fillRect(-5, -30, 10, 35);
+
+                const ringCount = level >= 7 ? 5 : (level >= 3 ? 4 : 3);
+                ctx.fillStyle = level >= 7 ? '#ffd700' : '#bcaaa4';
+                for (let i = 0; i < ringCount; i++) {
+                    ctx.fillRect(-12, -28 + (i * 6), 24, 2);
                 }
-                // Centelhas Idle
-                if (Math.random() > 0.8) {
+
+                // Arc Effects
+                if (Math.random() > (level >= 7 ? 0.4 : 0.8)) {
                     ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
-                    ctx.beginPath(); ctx.moveTo(0, -25); ctx.lineTo((Math.random() - 0.5) * 20, -35); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(0, -30);
+                    ctx.lineTo((Math.random() - 0.5) * 30, -45); ctx.stroke();
                 }
-                // Esfera Topo
-                ctx.fillStyle = '#78909c'; ctx.beginPath(); ctx.arc(0, -28, 6, 0, Math.PI * 2); ctx.fill();
-                if (this.muzzleFlash > 0) {
-                    // Lightning connector drawing logic would be here, but we hit Target instantly. 
-                    // Let's draw a flash on top.
-                    ctx.fillStyle = '#fff'; ctx.shadowBlur = 15; ctx.shadowColor = '#fff';
-                    ctx.beginPath(); ctx.arc(0, -28, 12, 0, Math.PI * 2); ctx.fill();
-                }
+
+                ctx.fillStyle = '#78909c'; ctx.beginPath(); ctx.arc(0, -32, 8, 0, Math.PI * 2); ctx.fill();
                 break;
 
             case 'magic':
-                // Observatório Místico (Arcane Sanctuary)
-                ctx.fillStyle = '#311b92'; ctx.beginPath(); ctx.arc(0, 0, 18, Math.PI, 0); ctx.fill();
-                // Olho Mágico
-                ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(0, -5, 8, 4, 0, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = '#ea80fc'; ctx.beginPath(); ctx.arc(0, -5, 3, 0, Math.PI * 2); ctx.fill();
-                // Anéis Planetários
-                ctx.strokeStyle = '#ba68c8'; ctx.lineWidth = 1;
-                ctx.save(); ctx.rotate(time / 1000);
-                ctx.beginPath(); ctx.ellipse(0, -5, 25, 10, 0, 0, Math.PI * 2); ctx.stroke();
-                ctx.restore();
-                // Pergaminhos Levitantes
-                ctx.fillStyle = '#fff9c4';
-                const sY = Math.sin(time / 300) * 5;
-                ctx.fillRect(-22, -15 + sY, 6, 8);
-                ctx.fillRect(16, -10 + sY, 6, 8);
+                // Nível 1: Sanctuary | Nível 3: planetary rings | Nível 7: Arcane Observatory
+                ctx.fillStyle = level >= 7 ? '#4a148c' : '#311b92';
+                ctx.beginPath(); ctx.arc(0, 0, 20, Math.PI, 0); ctx.fill();
+
+                // Central Eye or Orb
+                ctx.shadowBlur = level >= 7 ? 20 : 10;
+                ctx.shadowColor = '#ea80fc';
+                ctx.fillStyle = level >= 7 ? '#fff' : '#ea80fc';
+                ctx.beginPath(); ctx.arc(0, -5, 6 + level, 0, Math.PI * 2); ctx.fill();
+                ctx.shadowBlur = 0;
+
+                // Multiple Rings (Level 7)
+                const rings = level >= 7 ? 3 : (level >= 3 ? 2 : 1);
+                for (let i = 0; i < rings; i++) {
+                    ctx.strokeStyle = '#ba68c8'; ctx.lineWidth = 1;
+                    ctx.save();
+                    ctx.rotate(time / (1000 + i * 200));
+                    ctx.beginPath(); ctx.ellipse(0, -5, 25 + i * 5, 10 + i * 2, 0, 0, Math.PI * 2); ctx.stroke();
+                    ctx.restore();
+                }
                 break;
         }
         ctx.restore();
