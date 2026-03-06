@@ -438,6 +438,7 @@ class Enemy {
 class Tower {
     constructor(x, y, game, type) {
         this.x = x; this.y = y; this.game = game; this.type = type; this.level = 1; this.timer = 0;
+        this.muzzleFlash = 0;
         const d = game.towerData[type];
         switch (type) {
             case 'cannon': this.range = 150; this.damage = 10; this.atkS = 1000; break;
@@ -454,31 +455,137 @@ class Tower {
         this.timer += delta;
         if (this.timer >= this.atkS) {
             const t = this.game.enemies.find(e => Math.sqrt((e.x - this.x) ** 2 + (e.y - this.y) ** 2) <= this.range);
-            if (t) { this.game.projectiles.push(new Projectile(this.x, this.y, t, this.damage, this.type, this.game)); this.timer = 0; }
+            if (t) {
+                if (this.type === 'lightning') {
+                    // Instant hit for tesla
+                    t.takeDamage(this.damage);
+                    this.game.createMagicEffect('#ffff00', 5);
+                    this.muzzleFlash = 100;
+                    this.timer = 0;
+                } else {
+                    this.game.projectiles.push(new Projectile(this.x, this.y, t, this.damage, this.type, this.game));
+                    this.muzzleFlash = 100; // Trigger flash
+                    this.timer = 0;
+                }
+            }
         }
+        if (this.muzzleFlash > 0) this.muzzleFlash -= delta;
     }
     draw(ctx) {
         ctx.save(); ctx.translate(this.x, this.y);
-        ctx.fillStyle = '#1a1a1a'; ctx.beginPath(); ctx.rect(-18, -18, 36, 36); ctx.fill();
+        const time = Date.now();
+        const float = Math.sin(time / 400) * 3;
+
+        // Base de Pedra Comum
+        ctx.fillStyle = '#37474f';
+        ctx.fillRect(-18, -2, 36, 20);
+        ctx.fillStyle = '#263238';
+        ctx.fillRect(-20, 16, 40, 4);
+
         switch (this.type) {
             case 'cannon':
-                ctx.fillStyle = '#5d4037'; ctx.fillRect(-15, -15, 30, 30);
-                ctx.fillStyle = '#424242'; ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI * 2); ctx.fill(); break;
+                // Fortaleza Móvel (Siege Cannon)
+                ctx.fillStyle = '#4e342e'; ctx.fillRect(-15, -12, 30, 15); // Base madeira
+                ctx.fillStyle = '#795548'; ctx.fillRect(-12, -8, 24, 10);
+                // Engrenagens
+                ctx.save(); ctx.translate(-10, 5); ctx.rotate(time / 500);
+                ctx.fillStyle = '#212121'; ctx.fillRect(-4, -4, 8, 8); ctx.restore();
+                ctx.save(); ctx.translate(10, 5); ctx.rotate(-time / 500);
+                ctx.fillStyle = '#212121'; ctx.fillRect(-4, -4, 8, 8); ctx.restore();
+                // Cano Duplo
+                ctx.fillStyle = '#cd7f32'; // Bronze
+                ctx.fillRect(-12, -22 + (this.muzzleFlash > 0 ? 5 : 0), 8, 18);
+                ctx.fillRect(4, -22 + (this.muzzleFlash > 0 ? 5 : 0), 8, 18);
+                if (this.muzzleFlash > 0) {
+                    ctx.fillStyle = '#ffeb3b'; ctx.beginPath(); ctx.arc(-8, -25, 8, 0, Math.PI * 2); ctx.arc(8, -25, 8, 0, Math.PI * 2); ctx.fill();
+                }
+                break;
+
             case 'ice':
-                ctx.fillStyle = '#1565c0'; ctx.beginPath(); ctx.moveTo(0, -18); ctx.lineTo(15, 0); ctx.lineTo(0, 18); ctx.lineTo(-15, 0); ctx.closePath(); ctx.fill();
-                ctx.fillStyle = '#4fc3f7'; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); ctx.fill(); break;
+                // Obelisco Glacial (Ice Pinnacle)
+                ctx.fillStyle = '#bbdefb'; ctx.beginPath();
+                ctx.moveTo(0, -35 + float); ctx.lineTo(12, -10 + float); ctx.lineTo(-12, -10 + float); ctx.fill();
+                // Cristais Flutuantes
+                for (let i = 0; i < 3; i++) {
+                    const angle = (time / 600) + (i * Math.PI * 2 / 3);
+                    const cx = Math.cos(angle) * 18, cy = Math.sin(angle) * 8 - 15;
+                    ctx.fillStyle = '#e3f2fd'; ctx.fillRect(cx - 3, cy - 3, 6, 6);
+                }
+                // Núcleo brilhante
+                ctx.shadowBlur = 10; ctx.shadowColor = '#00bfff';
+                ctx.fillStyle = '#00bfff'; ctx.beginPath(); ctx.arc(0, -15 + float, 5, 0, Math.PI * 2); ctx.fill();
+                break;
+
             case 'fire':
-                ctx.fillStyle = '#212121'; ctx.fillRect(-14, -14, 28, 28);
-                const p = Math.sin(Date.now() / 200) * 3; ctx.fillStyle = '#ff3d00'; ctx.beginPath(); ctx.arc(0, 0, 8 + p, 0, Math.PI * 2); ctx.fill(); break;
+                // Altar de Magma (Volcano Forge)
+                ctx.fillStyle = '#212121'; ctx.fillRect(-15, -15, 30, 20); // Obsidiana
+                const pulse = (Math.sin(time / 200) + 1) / 2;
+                // Lava escorrendo
+                ctx.fillStyle = `rgba(255, 69, 0, ${0.5 + pulse * 0.5})`;
+                ctx.fillRect(-12, -5, 4, 15); ctx.fillRect(8, -5, 4, 15);
+                // Bacia de Fogo
+                ctx.fillStyle = '#bf360c'; ctx.beginPath(); ctx.ellipse(0, -15, 12, 6, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#ff4500'; ctx.beginPath(); ctx.arc(0, -18, 6 + pulse * 4, 0, Math.PI * 2); ctx.fill();
+                if (this.muzzleFlash > 0) {
+                    ctx.fillStyle = '#ffeb3b'; ctx.beginPath(); ctx.arc(0, -30, 15, 0, Math.PI * 2); ctx.fill();
+                }
+                break;
+
             case 'poison':
-                ctx.fillStyle = '#455a64'; ctx.fillRect(-15, -10, 30, 20);
-                ctx.fillStyle = '#32cd32'; ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.fill(); break;
+                // Destilaria Tóxica (Plague Lab)
+                ctx.fillStyle = '#3e2723'; ctx.fillRect(-15, -10, 30, 15);
+                // Tanque Green
+                ctx.fillStyle = '#1b5e20'; ctx.fillRect(-8, -25, 16, 18);
+                const bubble = Math.sin(time / 150) * 2;
+                ctx.fillStyle = '#4caf50'; ctx.fillRect(-6, -20 + bubble, 12, 10);
+                // Canos de Cobre
+                ctx.strokeStyle = '#a1887f'; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.moveTo(-15, -5); ctx.lineTo(-20, -15); ctx.lineTo(-12, -20); ctx.stroke();
+                if (this.muzzleFlash > 0) {
+                    ctx.fillStyle = '#ccff90'; ctx.beginPath(); ctx.arc(0, -30, 10, 0, Math.PI * 2); ctx.fill();
+                }
+                break;
+
             case 'lightning':
-                ctx.fillStyle = '#78909c'; ctx.fillRect(-3, -15, 6, 30);
-                ctx.fillStyle = '#ffff00'; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill(); break;
+                // Torre de Tesla (Storm Coil)
+                ctx.fillStyle = '#546e7a'; ctx.fillRect(-4, -25, 8, 30);
+                // Anéis de Cobre
+                ctx.fillStyle = '#bcaaa4';
+                for (let i = 0; i < 3; i++) {
+                    ctx.fillRect(-10, -22 + (i * 8), 20, 3);
+                }
+                // Centelhas Idle
+                if (Math.random() > 0.8) {
+                    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.moveTo(0, -25); ctx.lineTo((Math.random() - 0.5) * 20, -35); ctx.stroke();
+                }
+                // Esfera Topo
+                ctx.fillStyle = '#78909c'; ctx.beginPath(); ctx.arc(0, -28, 6, 0, Math.PI * 2); ctx.fill();
+                if (this.muzzleFlash > 0) {
+                    // Lightning connector drawing logic would be here, but we hit Target instantly. 
+                    // Let's draw a flash on top.
+                    ctx.fillStyle = '#fff'; ctx.shadowBlur = 15; ctx.shadowColor = '#fff';
+                    ctx.beginPath(); ctx.arc(0, -28, 12, 0, Math.PI * 2); ctx.fill();
+                }
+                break;
+
             case 'magic':
-                ctx.fillStyle = '#4a148c'; ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = '#ea80fc'; ctx.beginPath(); ctx.rect(-6, -6, 12, 12); ctx.fill(); break;
+                // Observatório Místico (Arcane Sanctuary)
+                ctx.fillStyle = '#311b92'; ctx.beginPath(); ctx.arc(0, 0, 18, Math.PI, 0); ctx.fill();
+                // Olho Mágico
+                ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(0, -5, 8, 4, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#ea80fc'; ctx.beginPath(); ctx.arc(0, -5, 3, 0, Math.PI * 2); ctx.fill();
+                // Anéis Planetários
+                ctx.strokeStyle = '#ba68c8'; ctx.lineWidth = 1;
+                ctx.save(); ctx.rotate(time / 1000);
+                ctx.beginPath(); ctx.ellipse(0, -5, 25, 10, 0, 0, Math.PI * 2); ctx.stroke();
+                ctx.restore();
+                // Pergaminhos Levitantes
+                ctx.fillStyle = '#fff9c4';
+                const sY = Math.sin(time / 300) * 5;
+                ctx.fillRect(-22, -15 + sY, 6, 8);
+                ctx.fillRect(16, -10 + sY, 6, 8);
+                break;
         }
         ctx.restore();
         ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Outfit'; ctx.textAlign = 'center'; ctx.fillText(`LVL ${this.level}`, this.x, this.y + 28);
@@ -491,6 +598,16 @@ class Projectile {
         this.speed = 7; this.dead = false; this.piercing = (type === 'magic'); this.hitE = new Set();
     }
     update(delta) {
+        // Trail particles
+        if (Math.random() > 0.5) {
+            let color = '#fff';
+            if (this.type === 'fire') color = '#ff4500';
+            if (this.type === 'ice') color = '#e3f2fd';
+            if (this.type === 'poison') color = '#4caf50';
+            if (this.type === 'magic') color = '#ea80fc';
+            this.game.particles.push(new Particle(this.x, this.y, color));
+        }
+
         if (this.piercing) {
             if (!this.vx) { const dx = this.target.x - this.x, dy = this.target.y - this.y, d = Math.sqrt(dx * dx + dy * dy); this.vx = (dx / d) * this.speed; this.vy = (dy / d) * this.speed; }
             this.x += this.vx; this.y += this.vy;
@@ -511,11 +628,40 @@ class Projectile {
     }
     draw(ctx) {
         ctx.save(); ctx.translate(this.x, this.y);
-        ctx.fillStyle = '#fff';
-        if (this.type === 'fire') ctx.fillStyle = '#ff4500';
-        if (this.type === 'ice') ctx.fillStyle = '#00f2ff';
-        if (this.type === 'lightning') ctx.fillStyle = '#ffff00';
-        ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+        ctx.shadowBlur = 5;
+        switch (this.type) {
+            case 'cannon':
+                // Obuseiro Explosivo
+                ctx.fillStyle = '#424242'; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#ffeb3b'; ctx.fillRect(-2, -2, 4, 4); // Spikes/glow
+                break;
+            case 'ice':
+                // Lança de Gelo
+                ctx.fillStyle = '#bbdefb'; ctx.shadowColor = '#00bfff';
+                ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(-4, -4); ctx.lineTo(-2, 0); ctx.lineTo(-4, 4); ctx.closePath(); ctx.fill();
+                break;
+            case 'fire':
+                // Meteoro Incandescente
+                ctx.fillStyle = '#ff4500'; ctx.shadowColor = '#ff4500'; ctx.shadowBlur = 10;
+                ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#424242'; ctx.beginPath(); ctx.arc(-2, -2, 3, 0, Math.PI * 2); ctx.fill();
+                break;
+            case 'poison':
+                // Bomba de Bio-Risco (Flask)
+                ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.5;
+                ctx.fillRect(-3, -6, 6, 12); ctx.globalAlpha = 1;
+                ctx.fillStyle = '#4caf50'; ctx.fillRect(-2, -2, 4, 6);
+                break;
+            case 'magic':
+                // Estrela Cadente
+                ctx.fillStyle = '#ea80fc'; ctx.shadowColor = '#ea80fc'; ctx.shadowBlur = 15;
+                ctx.beginPath(); ctx.arc(0, 0, 7, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.fillRect(-2, -2, 4, 4);
+                break;
+            default:
+                ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.restore();
     }
 }
 
