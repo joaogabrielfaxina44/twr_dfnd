@@ -44,12 +44,12 @@ class Game {
 
         this.towerLimits = { cannon: 0, fire: 0, ice: 0, lightning: 0, magic: 0, poison: 0 };
         this.towerData = {
-            cannon: { cost: 100, name: "Canhão Básico", icon: "🏹", color: "#8a2be2", range: 150 },
-            fire: { cost: 200, name: "Torre de Fogo", icon: "🔥", color: "#ff4500", range: 120 },
-            ice: { cost: 150, name: "Torre de Gelo", icon: "❄️", color: "#00bfff", range: 130 },
-            lightning: { cost: 300, name: "Torre de Raio", icon: "⚡", color: "#ffff00", range: 160 },
-            magic: { cost: 400, name: "Torre Mágica", icon: "✨", color: "#da70d6", range: 160 },
-            poison: { cost: 250, name: "Torre Veneno", icon: "🧪", color: "#32cd32", range: 140 }
+            cannon: { cost: 100, name: "Canhão de Cerco", icon: "💣", color: "#795548", range: 150 },
+            fire: { cost: 200, name: "Forja de Vulcão", icon: "🌋", color: "#ff5722", range: 120 },
+            ice: { cost: 150, name: "Pináculo de Gelo", icon: "❄️", color: "#00bcd4", range: 130 },
+            lightning: { cost: 300, name: "Bobina de Raio", icon: "⚡", color: "#ffeb3b", range: 160 },
+            magic: { cost: 400, name: "Santuário Arcano", icon: "🔮", color: "#da70d6", range: 160 },
+            poison: { cost: 250, name: "Laboratório de Peste", icon: "🧪", color: "#8bc34a", range: 140 }
         };
 
         this.init();
@@ -137,6 +137,19 @@ class Game {
         if (hpVal) hpVal.innerText = Math.max(0, this.hp);
         if (waveNum) waveNum.innerText = this.wave;
 
+        // Update Tower Shop interaction
+        Object.keys(this.towerData).forEach(type => {
+            const el = document.getElementById('shop-' + type);
+            if (el) {
+                if (this.gold < this.towerData[type].cost || this.towerLimits[type] >= 5) {
+                    el.classList.add('disabled');
+                } else {
+                    el.classList.remove('disabled');
+                }
+            }
+        });
+
+        // Update Skills Cooldown and Cost
         Object.keys(this.skills).forEach(id => {
             const skill = this.skills[id];
             const btn = document.getElementById('skill-' + id);
