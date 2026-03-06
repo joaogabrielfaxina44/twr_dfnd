@@ -44,7 +44,7 @@ class Game {
             cannon: { cost: 100, name: "Canhão Básico", icon: "🏹", color: "#8a2be2", range: 150 },
             fire: { cost: 200, name: "Torre de Fogo", icon: "🔥", color: "#ff4500", range: 120 },
             ice: { cost: 150, name: "Torre de Gelo", icon: "❄️", color: "#00bfff", range: 130 },
-            lightning: { cost: 300, name: "Torre de Raio", icon: "⚡", color: "#ffff00", range: 200 },
+            lightning: { cost: 300, name: "Torre de Raio", icon: "⚡", color: "#ffff00", range: 160 },
             magic: { cost: 400, name: "Torre Mágica", icon: "✨", color: "#da70d6", range: 160 },
             poison: { cost: 250, name: "Torre Veneno", icon: "🧪", color: "#32cd32", range: 140 }
         };
@@ -402,15 +402,41 @@ class Game {
         this.ctx.beginPath(); this.ctx.moveTo(cX - 32, cY - 30); this.ctx.lineTo(cX - 22, cY - 45); this.ctx.lineTo(cX - 12, cY - 30); this.ctx.fill();
         this.ctx.beginPath(); this.ctx.moveTo(cX + 13, cY - 30); this.ctx.lineTo(cX + 23, cY - 45); this.ctx.lineTo(cX + 33, cY - 30); this.ctx.fill();
 
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; this.ctx.fillRect(10, 10, 130, 45);
-        this.ctx.fillStyle = '#00fa9a'; this.ctx.font = 'bold 22px Outfit'; this.ctx.fillText(`ONDA: ${this.wave}`, 20, 42);
+        // Wave counter fixed position (bottom right of canvas)
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        this.ctx.fillRect(660, 545, 130, 45);
+        this.ctx.fillStyle = '#00fa9a';
+        this.ctx.font = 'bold 22px Outfit';
+        this.ctx.textAlign = 'right';
+        this.ctx.fillText(`ONDA: ${this.wave}`, 780, 577);
+        this.ctx.textAlign = 'left';
     }
 
     gameOver() {
-        this.ctx.fillStyle = 'rgba(0,0,0,0.8)'; this.ctx.fillRect(0, 0, 800, 600);
-        this.ctx.fillStyle = 'white'; this.ctx.font = 'bold 48px Outfit'; this.ctx.textAlign = 'center';
-        this.ctx.fillText('FIM DE JOGO', 400, 300);
-        this.ctx.font = '24px Outfit'; this.ctx.fillText(`Você chegou na Onda ${this.wave}`, 400, 350);
+        this.paused = true;
+        this.ctx.fillStyle = 'rgba(0,0,0,0.85)';
+        this.ctx.fillRect(0, 0, 800, 600);
+
+        // Gradient text for Game Over
+        const grad = this.ctx.createLinearGradient(400, 200, 400, 300);
+        grad.addColorStop(0, '#ff4d4d');
+        grad.addColorStop(1, '#8b0000');
+
+        this.ctx.fillStyle = grad;
+        this.ctx.font = 'bold 72px Outfit';
+        this.ctx.textAlign = 'center';
+        this.ctx.shadowBlur = 20;
+        this.ctx.shadowColor = '#ff4d4d';
+        this.ctx.fillText('DERROTA', 400, 280);
+
+        this.ctx.shadowBlur = 0;
+        this.ctx.fillStyle = '#fff';
+        this.ctx.font = '24px Outfit';
+        this.ctx.fillText(`Seu castelo caiu na Onda ${this.wave}`, 400, 330);
+
+        this.ctx.fillStyle = '#00fa9a';
+        this.ctx.font = 'bold 18px Outfit';
+        this.ctx.fillText('Pressione F5 para tentar novamente', 400, 400);
     }
 }
 
@@ -519,9 +545,39 @@ class Tower {
             const t = this.game.enemies.find(e => Math.sqrt((e.x - this.x) ** 2 + (e.y - this.y) ** 2) <= this.range);
             if (t) {
                 if (this.type === 'lightning') {
-                    // Instant hit for tesla
-                    t.takeDamage(this.damage);
-                    this.game.createMagicEffect('#ffff00', 5);
+                    // Instant hit for tesla with paralysis
+                    const dmg = this.damage;
+                    const target = t;
+                    target.takeDamage(dmg);
+                    target.slow(1.0, 333); // Total paralysis for 1/3 second
+
+                    // Add Lightning Arc Particle Effect
+                    this.game.particles.push({
+                        draw: (ctx) => {
+                            ctx.strokeStyle = '#fff';
+                            ctx.lineWidth = 2;
+                            ctx.beginPath();
+                            ctx.moveTo(this.x, this.y - 28);
+                            // Jagged line
+                            let curX = this.x, curY = this.y - 28;
+                            for (let i = 0; i < 3; i++) {
+                                curX += (target.x - curX) * 0.3 + (Math.random() - 0.5) * 30;
+                                curY += (target.y - curY) * 0.3 + (Math.random() - 0.5) * 30;
+                                ctx.lineTo(curX, curY);
+                            }
+                            ctx.lineTo(target.x, target.y);
+                            ctx.stroke();
+                            // Glow
+                            ctx.strokeStyle = '#ffff00';
+                            ctx.lineWidth = 4;
+                            ctx.globalAlpha = 0.5;
+                            ctx.stroke();
+                            ctx.globalAlpha = 1.0;
+                        },
+                        update: function () { this.life -= 10; },
+                        life: 100
+                    });
+
                     this.muzzleFlash = 100;
                     this.timer = 0;
                 } else {
