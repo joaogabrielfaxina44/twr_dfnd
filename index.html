@@ -174,15 +174,52 @@
             <p class="announcement-sub" id="announcement-sub">+150 Ouro de Recompensa!</p>
         </div>
 
-        <!-- Overlay de Upgrade/Menu -->
-        <div id="upgrade-overlay"
-            style="display: none; position: absolute; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px; border: 1px solid var(--accent); z-index: 100;">
-            <div id="upgrade-info" style="font-size: 0.8rem; margin-bottom: 5px;">Nível: 1 | Dano: 10</div>
-            <button onclick="game.upgradeSelectedTower()"
-                style="background: var(--accent); color: #000; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; font-weight: bold;">UPGRADE
-                ($150)</button>
-            <button onclick="game.sellSelectedTower()"
-                style="background: #ff4d4d; color: #fff; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; margin-left: 5px;">VENDER</button>
+        <!-- Menu de Evolução Premium -->
+        <div id="evolution-menu" class="hidden">
+            <div id="evo-tower-preview">🏹</div>
+            <div class="evo-header">
+                <div class="evo-title">
+                    <span id="evo-name">CANHÃO DE CERCO</span>
+                    <span id="evo-level-tag">Lv. 1</span>
+                </div>
+                <div class="evo-xp-bar">
+                    <div id="evo-xp-fill" style="width: 20%;"></div>
+                </div>
+            </div>
+
+            <div class="evo-stats">
+                <div class="stat-card dmg">
+                    <span class="stat-icon">⚔️</span>
+                    <div class="stat-info">
+                        <span class="stat-label">DMG</span>
+                        <span class="stat-value" id="stat-dmg">128</span>
+                    </div>
+                </div>
+                <div class="stat-card rng">
+                    <span class="stat-icon">🎯</span>
+                    <div class="stat-info">
+                        <span class="stat-label">RNG</span>
+                        <span class="stat-value" id="stat-rng">19.9</span>
+                    </div>
+                </div>
+                <div class="stat-card spd">
+                    <span class="stat-icon">⚡</span>
+                    <div class="stat-info">
+                        <span class="stat-label">SPD</span>
+                        <span class="stat-value" id="stat-spd">5.86</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="evo-actions">
+                <button id="sell-btn" onclick="game.sellSelectedTower()">VENDER</button>
+                <button id="evolve-btn" onclick="game.upgradeSelectedTower()">
+                    <span class="evolve-label">EVOLVE</span>
+                    <span id="evolve-cost">$150</span>
+                </button>
+            </div>
+
+            <button class="close-evo" onclick="game.deselectTower()">×</button>
         </div>
     </div>
 

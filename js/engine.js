@@ -41,12 +41,12 @@ class Game {
 
         this.towerLimits = { cannon: 0, fire: 0, ice: 0, lightning: 0, magic: 0, poison: 0 };
         this.towerData = {
-            cannon: { cost: 100, name: "Canhão Básico", icon: "🏹", color: "#8a2be2" },
-            fire: { cost: 200, name: "Torre de Fogo", icon: "🔥", color: "#ff4500" },
-            ice: { cost: 150, name: "Torre de Gelo", icon: "❄️", color: "#00bfff" },
-            lightning: { cost: 300, name: "Torre de Raio", icon: "⚡", color: "#ffff00" },
-            magic: { cost: 400, name: "Torre Mágica", icon: "✨", color: "#da70d6" },
-            poison: { cost: 250, name: "Torre Veneno", icon: "🧪", color: "#32cd32" }
+            cannon: { cost: 100, name: "Canhão Básico", icon: "🏹", color: "#8a2be2", range: 150 },
+            fire: { cost: 200, name: "Torre de Fogo", icon: "🔥", color: "#ff4500", range: 120 },
+            ice: { cost: 150, name: "Torre de Gelo", icon: "❄️", color: "#00bfff", range: 130 },
+            lightning: { cost: 300, name: "Torre de Raio", icon: "⚡", color: "#ffff00", range: 200 },
+            magic: { cost: 400, name: "Torre Mágica", icon: "✨", color: "#da70d6", range: 160 },
+            poison: { cost: 250, name: "Torre Veneno", icon: "🧪", color: "#32cd32", range: 140 }
         };
 
         this.init();
@@ -163,27 +163,40 @@ class Game {
     }
 
     processClick(x, y, screenX, screenY) {
-        const overlay = document.getElementById('upgrade-overlay');
-        if (overlay) overlay.style.display = 'none';
-
+        // Find clicked tower
         const clickedTower = this.towers.find(t => Math.sqrt((t.x - x) ** 2 + (t.y - y) ** 2) < 25);
+
         if (clickedTower) {
             this.selectedActiveTower = clickedTower;
-            this.showUpgradeMenu(screenX, screenY);
+            this.showUpgradeMenu();
             this.selectedTowerType = null;
+            this.selectTowerType(null); // Clear placement selection
             return;
         }
 
+        // Clicked empty space
         if (this.selectedTowerType) {
             const data = this.towerData[this.selectedTowerType];
-            if (this.gold >= data.cost && this.towerLimits[this.selectedTowerType] < 5 && !this.isNearPath(x, y, 40)) {
+            if (this.gold >= data.cost && this.towerLimits[this.selectedTowerType] < 5 && !this.isNearPath(x, y, 40) && !this.isOverlappingTower(x, y)) {
                 this.towers.push(new Tower(x, y, this, this.selectedTowerType));
                 this.gold -= data.cost;
                 this.towerLimits[this.selectedTowerType]++;
                 this.selectTowerType(null);
                 this.updateHUD();
             }
+        } else {
+            this.deselectTower();
         }
+    }
+
+    isOverlappingTower(x, y) {
+        return this.towers.some(t => Math.sqrt((t.x - x) ** 2 + (t.y - y) ** 2) < 40);
+    }
+
+    deselectTower() {
+        this.selectedActiveTower = null;
+        const menu = document.getElementById('evolution-menu');
+        if (menu) menu.classList.add('hidden');
     }
 
     isNearPath(x, y, dist) {
@@ -206,35 +219,55 @@ class Game {
         }
     }
 
-    showUpgradeMenu(screenX, screenY) {
-        const overlay = document.getElementById('upgrade-overlay');
-        const info = document.getElementById('upgrade-info');
-        if (!overlay || !info) return;
+    showUpgradeMenu() {
+        const menu = document.getElementById('evolution-menu');
+        if (!menu || !this.selectedActiveTower) return;
+
         const tower = this.selectedActiveTower;
-        overlay.style.display = 'block';
-        overlay.style.left = screenX + 'px';
-        overlay.style.top = (screenY - 60) + 'px';
-        info.innerHTML = `Nível: ${tower.level}/7<br>Próximo: +${(tower.damage * 0.4).toFixed(1)} Dano`;
-        const btn = overlay.querySelector('button');
-        if (btn) btn.innerText = tower.level >= 7 ? "MAX" : `MELHORAR ($${tower.getUpgradeCost()})`;
+        const data = this.towerData[tower.type];
+
+        menu.classList.remove('hidden');
+
+        // Update texts
+        document.getElementById('evo-tower-preview').innerText = data.icon;
+        document.getElementById('evo-name').innerText = data.name.toUpperCase();
+        document.getElementById('evo-level-tag').innerText = `Lv. ${tower.level}`;
+
+        // Stats
+        document.getElementById('stat-dmg').innerText = tower.damage.toFixed(1);
+        document.getElementById('stat-rng').innerText = (tower.range / 10).toFixed(1); // Visual scale
+        document.getElementById('stat-spd').innerText = (1000 / tower.atkS).toFixed(2);
+
+        // XP/Level Bar
+        document.getElementById('evo-xp-fill').style.width = (tower.level / 7 * 100) + '%';
+
+        // Evolve Button
+        const evolveBtn = document.getElementById('evolve-btn');
+        const cost = tower.getUpgradeCost();
+        document.getElementById('evolve-cost').innerText = tower.level >= 7 ? 'MAX' : `$${cost}`;
+        evolveBtn.disabled = tower.level >= 7 || this.gold < cost;
     }
 
     upgradeSelectedTower() {
-        if (this.selectedActiveTower && this.gold >= this.selectedActiveTower.getUpgradeCost() && this.selectedActiveTower.level < 7) {
-            this.gold -= this.selectedActiveTower.getUpgradeCost();
-            this.selectedActiveTower.upgrade();
-            this.updateHUD();
-            document.getElementById('upgrade-overlay').style.display = 'none';
+        if (this.selectedActiveTower && this.selectedActiveTower.level < 7) {
+            const cost = this.selectedActiveTower.getUpgradeCost();
+            if (this.gold >= cost) {
+                this.gold -= cost;
+                this.selectedActiveTower.upgrade();
+                this.updateHUD();
+                this.showUpgradeMenu(); // Refresh menu
+                this.createMagicEffect(this.towerData[this.selectedActiveTower.type].color, 20, this.selectedActiveTower.x, this.selectedActiveTower.y);
+            }
         }
     }
 
     sellSelectedTower() {
         if (this.selectedActiveTower) {
-            this.gold += Math.floor(this.towerData[this.selectedActiveTower.type].cost * 0.5);
+            this.gold += Math.floor(this.towerData[this.selectedActiveTower.type].cost * 0.5 * this.selectedActiveTower.level);
             this.towerLimits[this.selectedActiveTower.type]--;
             this.towers = this.towers.filter(t => t !== this.selectedActiveTower);
+            this.deselectTower();
             this.updateHUD();
-            document.getElementById('upgrade-overlay').style.display = 'none';
         }
     }
 
@@ -264,8 +297,12 @@ class Game {
         this.updateHUD();
     }
 
-    createMagicEffect(color, count) {
-        for (let i = 0; i < count; i++) this.particles.push(new Particle(Math.random() * 800, Math.random() * 600, color));
+    createMagicEffect(color, count, x = null, y = null) {
+        for (let i = 0; i < count; i++) {
+            const px = x !== null ? x : Math.random() * 800;
+            const py = y !== null ? y : Math.random() * 600;
+            this.particles.push(new Particle(px, py, color));
+        }
     }
 
     loop(time) {
@@ -319,6 +356,31 @@ class Game {
 
     draw() {
         this.ctx.drawImage(this.bgCanvas, 0, 0);
+
+        // Selection Aura and Range (Canvas side)
+        if (this.selectedActiveTower) {
+            const t = this.selectedActiveTower;
+            // Draw Range Circle
+            this.ctx.beginPath();
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            this.ctx.lineWidth = 2;
+            this.ctx.arc(t.x, t.y, t.range, 0, Math.PI * 2);
+            this.ctx.fill();
+            this.ctx.stroke();
+
+            // Draw selection aura (glow)
+            this.ctx.save();
+            this.ctx.shadowBlur = 15;
+            this.ctx.shadowColor = 'white';
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            this.ctx.lineWidth = 3;
+            this.ctx.beginPath();
+            this.ctx.arc(t.x, t.y, 22, 0, Math.PI * 2);
+            this.ctx.stroke();
+            this.ctx.restore();
+        }
+
         this.enemies.forEach(e => e.draw(this.ctx));
         this.towers.forEach(t => t.draw(this.ctx));
         this.projectiles.forEach(p => p.draw(this.ctx));
@@ -326,10 +388,10 @@ class Game {
 
         if (this.towerToPlace) {
             this.ctx.globalAlpha = 0.4;
-            this.ctx.fillStyle = this.isNearPath(this.towerToPlace.x, this.towerToPlace.y, 40) ? 'rgba(255,0,0,0.5)' : 'rgba(0,255,0,0.3)';
+            this.ctx.fillStyle = (this.isNearPath(this.towerToPlace.x, this.towerToPlace.y, 40) || this.isOverlappingTower(this.towerToPlace.x, this.towerToPlace.y)) ? 'rgba(255,0,0,0.5)' : 'rgba(0,255,0,0.3)';
             this.ctx.beginPath(); this.ctx.arc(this.towerToPlace.x, this.towerToPlace.y, 20, 0, Math.PI * 2); this.ctx.fill();
             this.ctx.strokeStyle = 'white'; this.ctx.lineWidth = 1;
-            this.ctx.beginPath(); this.ctx.arc(this.towerToPlace.x, this.towerToPlace.y, 150, 0, Math.PI * 2); this.ctx.stroke();
+            this.ctx.beginPath(); this.ctx.arc(this.towerToPlace.x, this.towerToPlace.y, this.towerData[this.towerToPlace.type].range || 150, 0, Math.PI * 2); this.ctx.stroke();
             this.ctx.globalAlpha = 1.0;
         }
 
