@@ -1,12 +1,15 @@
 :root {
-    --primary: #8a2be2;
+    --primary: #9c27b0;
+    /* Arcane Purple */
     --secondary: #ff4500;
     --bg-dark: #0a0a0c;
     --surface: rgba(255, 255, 255, 0.05);
-    --accent: #00fa9a;
+    --accent: #50fa7b;
+    /* Mana Green */
     --font-main: 'Outfit', sans-serif;
-    --glass-bg: rgba(255, 255, 255, 0.1);
-    --glass-border: rgba(255, 255, 255, 0.2);
+    --glass-bg: rgba(20, 20, 30, 0.8);
+    --glass-border: rgba(138, 43, 226, 0.3);
+    --gold: #ffb86c;
 }
 
 * {
@@ -134,42 +137,66 @@ body {
     opacity: 0.8;
 }
 
+.shop-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
 .shop-item {
-    background: rgba(30, 30, 45, 0.6);
-    border: 2px solid rgba(255, 255, 255, 0.05);
-    padding: 8px;
+    background: linear-gradient(135deg, rgba(30, 30, 45, 0.9), rgba(10, 10, 15, 0.95));
+    border: 1px solid var(--glass-border);
+    padding: 10px;
     border-radius: 12px;
     cursor: pointer;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 12px;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    gap: 10px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
     backdrop-filter: blur(10px);
+    text-align: center;
 }
 
 .shop-item:hover {
-    background: rgba(50, 50, 70, 0.8);
-    border-color: rgba(255, 255, 255, 0.2);
-    transform: scale(1.02) translateX(5px);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+    border-color: var(--primary);
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(138, 43, 226, 0.4);
 }
 
 .shop-item.selected {
-    border-color: var(--accent);
-    background: rgba(0, 250, 154, 0.1);
-    box-shadow: 0 0 20px rgba(0, 250, 154, 0.3);
+    border: 2px solid var(--accent);
+    background: rgba(80, 250, 123, 0.1);
+    box-shadow: 0 0 25px rgba(80, 250, 123, 0.3);
+}
+
+.shop-item.selected::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 2px solid #fff;
+    border-radius: 10px;
+    animation: borderPulse 1.5s infinite;
+}
+
+@keyframes borderPulse {
+
+    0%,
+    100% {
+        opacity: 0.2;
+    }
+
+    50% {
+        opacity: 0.8;
+    }
 }
 
 .shop-item.disabled {
-    opacity: 0.4;
+    opacity: 0.5;
     cursor: not-allowed;
-    filter: grayscale(0.8);
-}
-
-.shop-item.disabled .item-cost {
-    color: #ff4d4d !important;
+    filter: grayscale(1);
 }
 
 .item-icon {

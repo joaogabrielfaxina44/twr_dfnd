@@ -15,11 +15,21 @@ class Game {
         this.enemiesInWave = 10;
         this.enemiesSpawned = 0;
         this.paused = true;
+        this.gameState = 'title'; // 'title', 'playing', 'gameover'
         this.vfxLayer = [];
-        this.decorations = []; // Environmental elements
+        this.decorations = [];
+        this.manaFireflies = [];
         this.screenShake = 0;
         this.screenColorOverlay = null;
         this.overlayTimer = 0;
+        this.titleOpacity = 0;
+        this.titleFadeIn = true;
+
+        // Load Splash Screen
+        this.splashImg = new Image();
+        this.splashImg.src = 'C:\\Users\\joaog\\.gemini\\antigravity\\brain\\6d0cc51a-7d82-4787-b331-f17ef398531e\\media__1772831747523.jpg';
+        this.splashImg.onload = () => { this.titleFadeIn = true; };
+
         this.path = [
             { x: -20, y: 300 },
             { x: 100, y: 300 },
@@ -86,8 +96,7 @@ class Game {
         this.bgCanvas.height = 600;
         const bctx = this.bgCanvas.getContext('2d');
 
-        // --- PROC-GEN PIXEL ART TEXTURES ---
-        const generatePixelTexture = (w, h, setup) => {
+        const generatePX = (w, h, setup) => {
             const c = document.createElement('canvas');
             c.width = w; c.height = h;
             const tx = c.getContext('2d');
@@ -96,122 +105,97 @@ class Game {
             return c;
         };
 
-        // 1. Forest Ground Texture (Tilable)
-        const grassTex = generatePixelTexture(64, 64, (ctx) => {
-            // Base green
-            ctx.fillStyle = '#2e7d32'; ctx.fillRect(0, 0, 64, 64);
-            // Grass blades and soil variations
-            for (let i = 0; i < 120; i++) {
-                const x = Math.floor(Math.random() * 64), y = Math.floor(Math.random() * 64);
-                ctx.fillStyle = Math.random() > 0.5 ? '#1b5e20' : '#388e3c';
-                ctx.fillRect(x, y, 2, 2);
+        // 1. Emerald Mana Carpet Ground
+        const emeraldTex = generatePX(128, 128, (ctx) => {
+            ctx.fillStyle = '#1b5e20'; ctx.fillRect(0, 0, 128, 128);
+            for (let i = 0; i < 300; i++) {
+                ctx.fillStyle = Math.random() > 0.6 ? '#00695c' : '#2e7d32';
+                ctx.fillRect(Math.floor(Math.random() * 128), Math.floor(Math.random() * 128), 4, 4);
             }
-            // Flowers
-            for (let i = 0; i < 8; i++) {
-                const x = Math.floor(Math.random() * 60), y = Math.floor(Math.random() * 60);
-                ctx.fillStyle = Math.random() > 0.5 ? '#ffeb3b' : '#2196f3'; // Yellow/Blue
-                ctx.fillRect(x, y, 2, 2);
-            }
-            // Leaves/Pebbles
-            for (let i = 0; i < 6; i++) {
-                const x = Math.floor(Math.random() * 60), y = Math.floor(Math.random() * 60);
-                ctx.fillStyle = Math.random() > 0.5 ? '#8d6e63' : '#78909c';
-                ctx.fillRect(x, y, 3, 2);
-            }
-        });
-
-        // 2. Dirt Path Texture (Tilable)
-        const dirtTex = generatePixelTexture(32, 32, (ctx) => {
-            ctx.fillStyle = '#795548'; ctx.fillRect(0, 0, 32, 32);
+            const colors = ['#ea80fc', '#b2ebf2', '#ff4081'];
             for (let i = 0; i < 40; i++) {
-                ctx.fillStyle = Math.random() > 0.6 ? '#6d4c41' : '#8d6e63';
-                ctx.fillRect(Math.floor(Math.random() * 32), Math.floor(Math.random() * 32), 2, 2);
-            }
-            // Roots/Stones
-            for (let i = 0; i < 3; i++) {
-                ctx.fillStyle = '#4e342e';
-                ctx.fillRect(Math.floor(Math.random() * 28), Math.floor(Math.random() * 28), 4, 1);
+                ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+                const x = Math.floor(Math.random() * 124), y = Math.floor(Math.random() * 124);
+                ctx.fillRect(x, y, 2, 2);
             }
         });
 
-        // 3. Tree Sprite (Simple but detailed pixel art)
-        this.treeSprite = generatePixelTexture(40, 50, (ctx) => {
-            // Trunk
-            ctx.fillStyle = '#3e2723'; ctx.fillRect(16, 25, 8, 20); // main
-            ctx.fillStyle = '#4e342e'; ctx.fillRect(14, 40, 12, 5); // roots
-            // Foliage
-            ctx.fillStyle = '#1b5e20';
-            ctx.beginPath(); ctx.arc(20, 15, 18, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#2e7d32'; ctx.beginPath(); ctx.arc(10, 10, 12, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.arc(30, 10, 12, 0, Math.PI * 2); ctx.fill();
-            // Dots/Detail
-            ctx.fillStyle = '#388e3c';
-            for (let i = 0; i < 15; i++) ctx.fillRect(Math.random() * 30 + 5, Math.random() * 20 + 5, 2, 2);
+        // 2. Rune Path
+        const pathTex = generatePX(64, 64, (ctx) => {
+            ctx.fillStyle = '#37474f'; ctx.fillRect(0, 0, 64, 64);
+            for (let i = 0; i < 10; i++) {
+                ctx.fillStyle = '#455a64';
+                ctx.fillRect(Math.floor(Math.random() * 50), Math.floor(Math.random() * 50), 20, 15);
+            }
+            ctx.fillStyle = '#ffd700'; ctx.globalAlpha = 0.6;
+            for (let i = 0; i < 5; i++) ctx.fillRect(Math.random() * 60, Math.random() * 60, 4, 2);
+            ctx.globalAlpha = 1.0;
         });
 
-        // --- DRAW BACKGROUND ---
-        const grassPattern = bctx.createPattern(grassTex, 'repeat');
-        bctx.fillStyle = grassPattern;
-        bctx.fillRect(0, 0, 800, 600);
+        // 3. Mana Oak Sprite
+        this.manaOakSprite = generatePX(60, 80, (ctx) => {
+            ctx.fillStyle = '#212121'; ctx.fillRect(25, 40, 10, 30);
+            const g = ctx.createRadialGradient(30, 30, 0, 30, 30, 35);
+            g.addColorStop(0, '#ea80fc'); g.addColorStop(1, '#4a148c');
+            ctx.fillStyle = g; ctx.beginPath(); ctx.arc(30, 30, 30, 0, Math.PI * 2); ctx.fill();
+        });
 
-        // Path (Using Dirt Pattern)
-        const dirtPattern = bctx.createPattern(dirtTex, 'repeat');
-        bctx.lineWidth = 44; bctx.lineCap = 'round'; bctx.lineJoin = 'round';
-        bctx.strokeStyle = '#5d4037'; // Border/Shadow
-        bctx.beginPath();
-        bctx.moveTo(this.path[0].x, this.path[0].y);
-        this.path.forEach(p => bctx.lineTo(p.x, p.y));
+        // 4. Crystal Sprite
+        this.crystalSprite = generatePX(20, 30, (ctx) => {
+            ctx.fillStyle = '#00e5ff'; ctx.beginPath(); ctx.moveTo(10, 0); ctx.lineTo(20, 15); ctx.lineTo(10, 30); ctx.lineTo(0, 15); ctx.fill();
+        });
+
+        const groundPat = bctx.createPattern(emeraldTex, 'repeat');
+        bctx.fillStyle = groundPat; bctx.fillRect(0, 0, 800, 600);
+
+        const pathPat = bctx.createPattern(pathTex, 'repeat');
+        bctx.lineWidth = 48; bctx.lineCap = 'round'; bctx.lineJoin = 'round';
+        bctx.strokeStyle = 'rgba(0,0,0,0.3)';
+        bctx.beginPath(); bctx.moveTo(this.path[0].x + 4, this.path[0].y + 4);
+        this.path.forEach(p => bctx.lineTo(p.x + 4, p.y + 4)); bctx.stroke();
+
+        bctx.strokeStyle = pathPat; bctx.lineWidth = 44;
         bctx.stroke();
 
-        bctx.strokeStyle = dirtPattern;
-        bctx.lineWidth = 36;
-        bctx.stroke();
-
-        // Edge "Grass Patches" along path
-        bctx.strokeStyle = '#2e7d32'; bctx.lineWidth = 46; bctx.globalAlpha = 0.3;
-        bctx.stroke(); bctx.globalAlpha = 1.0;
-
-        // --- DECORATIONS (Trees/Rocks) ---
         this.decorations = [];
-        for (let i = 0; i < 25; i++) {
-            let x, y;
-            let attempts = 0;
-            do {
-                x = Math.random() * 760 + 20; y = Math.random() * 540 + 20;
-                attempts++;
-            } while ((this.isNearPath(x, y, 60) || this.isOverlappingTower(x, y)) && attempts < 100);
-
-            if (attempts < 100) {
-                this.decorations.push({ x, y, sprite: this.treeSprite });
+        for (let i = 0; i < 28; i++) {
+            let x = Math.random() * 760 + 20, y = Math.random() * 540 + 20;
+            if (!this.isNearPath(x, y, 60)) {
+                this.decorations.push({ x, y, type: Math.random() > 0.4 ? 'tree' : 'crystal' });
             }
+        }
+
+        this.manaFireflies = [];
+        for (let i = 0; i < 12; i++) {
+            this.manaFireflies.push({ x: Math.random() * 800, y: Math.random() * 600, vx: (Math.random() - 0.5) * 0.5, vy: (Math.random() - 0.5) * 0.5, color: '#b2ebf2' });
         }
     }
 
     start() {
-        this.paused = false;
-        const startScreen = document.getElementById('start-screen');
-        if (startScreen) startScreen.style.display = 'none';
-        this.lastTime = performance.now();
-        requestAnimationFrame((time) => this.loop(time));
+        if (this.gameState === 'title') {
+            this.titleFadeIn = false;
+            setTimeout(() => {
+                this.gameState = 'playing';
+                this.paused = false;
+                const ss = document.getElementById('start-screen');
+                if (ss) ss.style.display = 'none';
+                this.lastTime = performance.now();
+                requestAnimationFrame((t) => this.loop(t));
+            }, 1000);
+        }
     }
 
     updateHUD() {
-        const goldVal = document.getElementById('gold-value');
-        const hpVal = document.getElementById('hp-value');
-        const waveNum = document.getElementById('wave-number');
-        if (goldVal) goldVal.innerText = Math.floor(this.gold);
-        if (hpVal) hpVal.innerText = Math.max(0, this.hp);
-        if (waveNum) waveNum.innerText = this.wave;
+        const gV = document.getElementById('gold-value'), hV = document.getElementById('hp-value'), wV = document.getElementById('wave-number');
+        if (gV) gV.innerText = Math.floor(this.gold);
+        if (hV) hV.innerText = Math.max(0, this.hp);
+        if (wV) wV.innerText = this.wave;
 
-        // Update Tower Shop interaction
         Object.keys(this.towerData).forEach(type => {
             const el = document.getElementById('shop-' + type);
             if (el) {
-                if (this.gold < this.towerData[type].cost || this.towerLimits[type] >= 5) {
-                    el.classList.add('disabled');
-                } else {
-                    el.classList.remove('disabled');
-                }
+                if (this.gold < this.towerData[type].cost || this.towerLimits[type] >= 5) el.classList.add('disabled');
+                else el.classList.remove('disabled');
             }
         });
 
@@ -237,6 +221,7 @@ class Game {
 
     handleInput(clientX, clientY, isClick) {
         if (!this.canvas) return;
+        if (this.gameState === 'title' && isClick) { this.start(); return; }
         const rect = this.canvas.getBoundingClientRect();
         const x = (clientX - rect.left) * (800 / rect.width);
         const y = (clientY - rect.top) * (600 / rect.height);
@@ -245,18 +230,13 @@ class Game {
     }
 
     processClick(x, y, screenX, screenY) {
-        // Find clicked tower
         const clickedTower = this.towers.find(t => Math.sqrt((t.x - x) ** 2 + (t.y - y) ** 2) < 25);
-
         if (clickedTower) {
             this.selectedActiveTower = clickedTower;
             this.showUpgradeMenu();
-            this.selectedTowerType = null;
-            this.selectTowerType(null); // Clear placement selection
+            this.selectTowerType(null);
             return;
         }
-
-        // Clicked empty space
         if (this.selectedTowerType) {
             const data = this.towerData[this.selectedTowerType];
             if (this.gold >= data.cost && this.towerLimits[this.selectedTowerType] < 5 && !this.isNearPath(x, y, 40) && !this.isOverlappingTower(x, y)) {
@@ -271,9 +251,7 @@ class Game {
         }
     }
 
-    isOverlappingTower(x, y) {
-        return this.towers.some(t => Math.sqrt((t.x - x) ** 2 + (t.y - y) ** 2) < 40);
-    }
+    isOverlappingTower(x, y) { return this.towers.some(t => Math.sqrt((t.x - x) ** 2 + (t.y - y) ** 2) < 40); }
 
     deselectTower() {
         this.selectedActiveTower = null;
@@ -304,30 +282,19 @@ class Game {
     showUpgradeMenu() {
         const menu = document.getElementById('evolution-menu');
         if (!menu || !this.selectedActiveTower) return;
-
         const tower = this.selectedActiveTower;
         const data = this.towerData[tower.type];
-
         menu.classList.remove('hidden');
-
-        // Update texts
         document.getElementById('evo-tower-preview').innerText = data.icon;
         document.getElementById('evo-name').innerText = data.name.toUpperCase();
         document.getElementById('evo-level-tag').innerText = `Lv. ${tower.level}`;
-
-        // Stats
         document.getElementById('stat-dmg').innerText = tower.damage.toFixed(1);
-        document.getElementById('stat-rng').innerText = (tower.range / 10).toFixed(1); // Visual scale
+        document.getElementById('stat-rng').innerText = (tower.range / 10).toFixed(1);
         document.getElementById('stat-spd').innerText = (1000 / tower.atkS).toFixed(2);
-
-        // XP/Level Bar
         document.getElementById('evo-xp-fill').style.width = (tower.level / 7 * 100) + '%';
-
-        // Evolve Button
-        const evolveBtn = document.getElementById('evolve-btn');
         const cost = tower.getUpgradeCost();
         document.getElementById('evolve-cost').innerText = tower.level >= 7 ? 'MAX' : `$${cost}`;
-        evolveBtn.disabled = tower.level >= 7 || this.gold < cost;
+        document.getElementById('evolve-btn').disabled = tower.level >= 7 || this.gold < cost;
     }
 
     upgradeSelectedTower() {
@@ -337,7 +304,7 @@ class Game {
                 this.gold -= cost;
                 this.selectedActiveTower.upgrade();
                 this.updateHUD();
-                this.showUpgradeMenu(); // Refresh menu
+                this.showUpgradeMenu();
                 this.createMagicEffect(this.towerData[this.selectedActiveTower.type].color, 20, this.selectedActiveTower.x, this.selectedActiveTower.y);
             }
         }
@@ -355,29 +322,19 @@ class Game {
 
     announce(main, sub) {
         const el = document.getElementById('announcement');
-        const amain = document.getElementById('announcement-main');
-        const asub = document.getElementById('announcement-sub');
+        const amain = document.getElementById('announcement-main'), asub = document.getElementById('announcement-sub');
         if (!el || !amain || !asub) return;
-        amain.innerText = main;
-        asub.innerText = sub;
-        el.style.opacity = '1';
-        setTimeout(() => el.style.opacity = '0', 3000);
+        amain.innerText = main; asub.innerText = sub;
+        el.style.opacity = '1'; setTimeout(() => el.style.opacity = '0', 3000);
     }
 
     castSkill(id) {
         const skill = this.skills[id];
         if (!skill || this.gold < skill.cost || Date.now() - (skill.lastUsed || 0) < skill.cooldown) return;
-
         this.gold -= skill.cost;
         skill.lastUsed = Date.now();
-
-        // Visual feedback on button
         const btn = document.getElementById('skill-' + id);
-        if (btn) {
-            btn.classList.add('activated');
-            setTimeout(() => btn.classList.remove('activated'), 400);
-        }
-
+        if (btn) { btn.classList.add('activated'); setTimeout(() => btn.classList.remove('activated'), 400); }
         this.triggerSuperAttack(id);
         this.updateHUD();
     }
@@ -386,71 +343,53 @@ class Game {
         switch (type) {
             case 'arrows':
                 this.screenShake = 15;
-                for (let i = 0; i < 60; i++) {
-                    this.vfxLayer.push({
-                        type: 'arrow',
-                        x: Math.random() * 800,
-                        y: -50 - Math.random() * 200,
-                        speed: 15 + Math.random() * 10,
-                        life: 100
-                    });
-                }
-                setTimeout(() => {
-                    this.enemies.forEach(e => e.takeDamage(15));
-                    this.createMagicEffect('#fff', 30);
-                }, 400);
+                for (let i = 0; i < 60; i++) this.vfxLayer.push({ type: 'arrow', x: Math.random() * 800, y: -50 - Math.random() * 200, speed: 15 + Math.random() * 10, life: 100 });
+                setTimeout(() => { this.enemies.forEach(e => e.takeDamage(15)); this.createMagicEffect('#fff', 30); }, 400);
                 break;
-
             case 'fire':
                 this.screenShake = 25;
                 this.vfxLayer.push({ type: 'explosion', x: 400, y: 300, radius: 0, maxRadius: 400, life: 100 });
                 this.enemies.forEach(e => { e.takeDamage(25); e.burn(8); });
                 break;
-
             case 'ice':
-                this.screenColorOverlay = 'rgba(0, 191, 255, 0.3)';
-                this.overlayTimer = 5000;
+                this.screenColorOverlay = 'rgba(0, 191, 255, 0.3)'; this.overlayTimer = 5000;
                 this.enemies.forEach(e => { e.takeDamage(5); e.slow(0.7, 5000); });
                 break;
-
             case 'lightning':
                 this.screenShake = 10;
                 for (let i = 0; i < 8; i++) {
                     setTimeout(() => {
                         const tx = Math.random() * 800;
                         this.vfxLayer.push({ type: 'lightning_strike', x: tx, life: 100 });
-                        this.enemies.forEach(e => {
-                            if (Math.abs(e.x - tx) < 100) e.takeDamage(40);
-                        });
+                        this.enemies.forEach(e => { if (Math.abs(e.x - tx) < 100) e.takeDamage(40); });
                     }, i * 150);
                 }
                 break;
-
             case 'annihilation':
-                this.screenColorOverlay = 'rgba(255, 255, 255, 0.8)';
-                this.overlayTimer = 1000;
-                this.screenShake = 40;
-                setTimeout(() => {
-                    this.enemies.forEach(e => e.takeDamage(e.hp * 0.7 + 100));
-                }, 500);
+                this.screenColorOverlay = 'rgba(255, 255, 255, 0.8)'; this.overlayTimer = 1000; this.screenShake = 40;
+                setTimeout(() => { this.enemies.forEach(e => e.takeDamage(e.hp * 0.7 + 100)); }, 500);
                 break;
         }
     }
 
     createMagicEffect(color, count, x = null, y = null) {
         for (let i = 0; i < count; i++) {
-            const px = x !== null ? x : Math.random() * 800;
-            const py = y !== null ? y : Math.random() * 600;
+            const px = x !== null ? x : Math.random() * 800, py = y !== null ? y : Math.random() * 600;
             this.particles.push(new Particle(px, py, color));
         }
     }
 
     loop(time) {
-        const delta = time - this.lastTime;
+        const delta = time - (this.lastTime || time);
         this.lastTime = time;
-        if (!this.paused) this.update(delta);
+        if (this.gameState === 'title') {
+            if (this.titleFadeIn) this.titleOpacity = Math.min(1, this.titleOpacity + delta * 0.001);
+            else this.titleOpacity = Math.max(0, this.titleOpacity - delta * 0.001);
+        } else if (!this.paused) {
+            this.update(delta);
+        }
         this.draw();
-        if (this.hp > 0) requestAnimationFrame((t) => this.loop(t));
+        if (this.hp > 0 || this.gameState === 'title') requestAnimationFrame((t) => this.loop(t));
         else this.gameOver();
     }
 
@@ -459,18 +398,16 @@ class Game {
         if (this.overlayTimer > 0) this.overlayTimer -= delta;
         else this.screenColorOverlay = null;
 
+        this.manaFireflies.forEach(f => {
+            f.x += f.vx; f.y += f.vy;
+            if (f.x < 0 || f.x > 800) f.vx *= -1;
+            if (f.y < 0 || f.y > 600) f.vy *= -1;
+        });
+
         this.vfxLayer.forEach((v, i) => {
-            if (v.type === 'arrow') {
-                v.y += v.speed;
-                if (v.y > 700) this.vfxLayer.splice(i, 1);
-            } else if (v.type === 'explosion') {
-                v.radius += 10;
-                v.life -= 2;
-                if (v.life <= 0) this.vfxLayer.splice(i, 1);
-            } else if (v.type === 'lightning_strike') {
-                v.life -= 10;
-                if (v.life <= 0) this.vfxLayer.splice(i, 1);
-            }
+            if (v.type === 'arrow') { v.y += v.speed; if (v.y > 700) this.vfxLayer.splice(i, 1); }
+            else if (v.type === 'explosion') { v.radius += 10; v.life -= 2; if (v.life <= 0) this.vfxLayer.splice(i, 1); }
+            else if (v.type === 'lightning_strike') { v.life -= 10; if (v.life <= 0) this.vfxLayer.splice(i, 1); }
         });
 
         if (this.enemies.length === 0 && this.enemiesSpawned >= this.enemiesInWave) {
@@ -480,19 +417,23 @@ class Game {
             this.announce("ONDA CONCLUÍDA", `Próxima: Onda ${this.wave} | Recompensa: $${reward}`);
             this.updateHUD();
         }
-        this.spawnTimer += delta;
-        if (this.spawnTimer > 1000 && this.enemiesSpawned < this.enemiesInWave) {
-            let type = 'normal';
-            const r = Math.random();
-            if (this.wave >= 2 && r > 0.8) type = 'fast';
-            if (this.wave >= 4 && r > 0.9) type = 'tank';
-            if (this.wave >= 6 && r > 0.95) type = 'spawn';
-            if (this.wave >= 8 && r > 0.98) type = 'shielded';
-            this.enemies.push(new Enemy(this.wave, this, type));
-            this.enemiesSpawned++; this.spawnTimer = 0;
+
+        if (this.enemiesSpawned < this.enemiesInWave) {
+            this.spawnTimer += delta;
+            if (this.spawnTimer > 1000) {
+                let type = 'normal';
+                const r = Math.random();
+                if (this.wave >= 2 && r > 0.8) type = 'fast';
+                if (this.wave >= 4 && r > 0.9) type = 'tank';
+                if (this.wave >= 6 && r > 0.95) type = 'spawn';
+                if (this.wave >= 8 && r > 0.98) type = 'shielded';
+                this.enemies.push(new Enemy(this.wave, this, type));
+                this.enemiesSpawned++;
+                this.spawnTimer = 0;
+            }
         }
 
-        this.enemies.forEach((e, i) => {
+        [...this.enemies].forEach(e => {
             e.update(delta);
             if (e.dead) {
                 if (e.reachedEnd) { this.hp--; this.updateHUD(); }
@@ -504,75 +445,56 @@ class Game {
                         this.enemies.push(sub);
                     }
                 }
-                this.enemies.splice(i, 1);
+                this.enemies = this.enemies.filter(en => en !== e);
             }
         });
-        this.towers.forEach(t => t.update(delta));
-        this.projectiles.forEach((p, i) => { p.update(delta); if (p.dead) this.projectiles.splice(i, 1); });
-        this.particles.forEach((p, i) => { p.update(delta); if (p.life <= 0) this.particles.splice(i, 1); });
+        [...this.towers].forEach(t => t.update(delta));
+        [...this.projectiles].forEach(p => { p.update(delta); if (p.dead) this.projectiles = this.projectiles.filter(pr => pr !== p); });
+        [...this.particles].forEach((p, i) => { p.update(delta); if (p.life <= 0) this.particles.splice(i, 1); });
     }
 
     draw() {
+        if (this.gameState === 'title') { this.drawTitleScreen(); return; }
         this.ctx.save();
-        if (this.screenShake > 0) {
-            const rx = (Math.random() - 0.5) * this.screenShake;
-            const ry = (Math.random() - 0.5) * this.screenShake;
-            this.ctx.translate(rx, ry);
-        }
-
+        if (this.screenShake > 0) this.ctx.translate((Math.random() - 0.5) * this.screenShake, (Math.random() - 0.5) * this.screenShake);
         this.ctx.drawImage(this.bgCanvas, 0, 0);
 
-        // Draw environmental decorations (Trees)
         this.decorations.forEach(d => {
-            this.ctx.drawImage(d.sprite, d.x - 20, d.y - 40);
-        });
-
-        // Tower Ground Glows (Ice / Arcane)
-        this.towers.forEach(t => {
-            if (t.type === 'ice' || t.type === 'magic') {
-                const pulse = Math.sin(Date.now() / 600) * 5;
-                const radius = 25 + pulse + (t.level * 2);
-                const g = this.ctx.createRadialGradient(t.x, t.y, 0, t.x, t.y, radius);
-                if (t.type === 'ice') {
-                    g.addColorStop(0, 'rgba(0, 191, 255, 0.4)');
-                    g.addColorStop(1, 'rgba(0, 191, 255, 0)');
-                } else {
-                    g.addColorStop(0, 'rgba(234, 128, 252, 0.4)');
-                    g.addColorStop(1, 'rgba(234, 128, 252, 0)');
-                }
-                this.ctx.fillStyle = g;
-                this.ctx.beginPath(); this.ctx.arc(t.x, t.y, radius, 0, Math.PI * 2); this.ctx.fill();
+            this.ctx.fillStyle = 'rgba(0,0,0,0.3)'; this.ctx.beginPath(); this.ctx.ellipse(d.x, d.y + 10, 15, 8, 0, 0, Math.PI * 2); this.ctx.fill(); // Adjusted shadow
+            if (d.type === 'tree') this.ctx.drawImage(this.manaOakSprite, d.x - 30, d.y - 70);
+            else {
+                const b = Math.sin(Date.now() / 500) * 5; this.ctx.drawImage(this.crystalSprite, d.x - 12, d.y - 20 + b); // Adjusted crystal position
+                this.ctx.shadowBlur = 10; this.ctx.shadowColor = '#00e5ff'; this.ctx.drawImage(this.crystalSprite, d.x - 12, d.y - 20 + b); this.ctx.shadowBlur = 0;
             }
         });
 
-        // Selection Aura and Range (Canvas side)
+        this.manaFireflies.forEach(f => {
+            this.ctx.globalAlpha = (Math.sin(Date.now() / 300) + 1.5) / 2; // Adjusted pulse speed
+            this.ctx.fillStyle = f.color; this.ctx.beginPath(); this.ctx.arc(f.x, f.y, 2, 0, Math.PI * 2); this.ctx.fill(); this.ctx.globalAlpha = 1;
+        });
+
+        this.towers.forEach(t => {
+            if (t.type === 'ice' || t.type === 'magic') {
+                const r = 25 + Math.sin(Date.now() / 600) * 5 + (t.level * 2); // Added level scaling
+                const g = this.ctx.createRadialGradient(t.x, t.y, 0, t.x, t.y, r);
+                g.addColorStop(0, t.type === 'ice' ? 'rgba(0,191,255,0.4)' : 'rgba(234,128,252,0.4)');
+                g.addColorStop(1, 'transparent'); this.ctx.fillStyle = g; this.ctx.beginPath(); this.ctx.arc(t.x, t.y, r, 0, Math.PI * 2); this.ctx.fill();
+            }
+        });
+
         if (this.selectedActiveTower) {
             const t = this.selectedActiveTower;
-            // Draw Range Circle
-            this.ctx.beginPath();
-            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-            this.ctx.lineWidth = 2;
-            this.ctx.arc(t.x, t.y, t.range, 0, Math.PI * 2);
-            this.ctx.fill();
-            this.ctx.stroke();
-
-            // Draw selection aura (glow)
-            this.ctx.save();
-            this.ctx.shadowBlur = 15;
-            this.ctx.shadowColor = 'white';
-            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-            this.ctx.lineWidth = 3;
-            this.ctx.beginPath();
-            this.ctx.arc(t.x, t.y, 22, 0, Math.PI * 2);
-            this.ctx.stroke();
-            this.ctx.restore();
+            this.ctx.beginPath(); this.ctx.fillStyle = 'rgba(255,255,255,0.1)'; this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'; this.ctx.lineWidth = 2; // Added stroke
+            this.ctx.arc(t.x, t.y, t.range, 0, Math.PI * 2); this.ctx.fill(); this.ctx.stroke(); // Fill and stroke
+            this.ctx.save(); // Save for glow
+            this.ctx.shadowBlur = 15; this.ctx.shadowColor = 'white'; this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'; this.ctx.lineWidth = 3; // Adjusted glow
+            this.ctx.beginPath(); this.ctx.arc(t.x, t.y, 22, 0, Math.PI * 2); this.ctx.stroke(); this.ctx.restore(); // Restore for glow
         }
 
         this.enemies.forEach(e => e.draw(this.ctx));
         this.towers.forEach(t => t.draw(this.ctx));
         this.projectiles.forEach(p => p.draw(this.ctx));
-        this.particles.forEach(p => {
+        this.particles.forEach(p => { // Particles can be generic or custom draw
             if (typeof p.draw === 'function') p.draw(this.ctx);
             else {
                 this.ctx.globalAlpha = p.life / 100;
@@ -582,51 +504,33 @@ class Game {
             }
         });
 
-        // DRAW VFX LAYER
         this.vfxLayer.forEach(v => {
-            if (v.type === 'arrow') {
-                this.ctx.fillStyle = '#eee';
-                this.ctx.fillRect(v.x, v.y, 2, 20);
-            } else if (v.type === 'explosion') {
-                this.ctx.beginPath();
+            if (v.type === 'arrow') { this.ctx.fillStyle = '#eee'; this.ctx.fillRect(v.x, v.y, 2, 20); } // Adjusted arrow color/size
+            else if (v.type === 'explosion') {
                 const g = this.ctx.createRadialGradient(v.x, v.y, 0, v.x, v.y, v.radius);
-                g.addColorStop(0, 'rgba(255,255,255,1)');
-                g.addColorStop(0.2, 'rgba(255,200,0,0.8)');
-                g.addColorStop(1, 'rgba(255,0,0,0)');
-                this.ctx.fillStyle = g;
-                this.ctx.arc(v.x, v.y, v.radius, 0, Math.PI * 2);
-                this.ctx.fill();
+                g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.2, 'rgba(255,200,0,0.8)'); g.addColorStop(1, 'rgba(255,0,0,0)'); // More fiery gradient
+                this.ctx.fillStyle = g; this.ctx.beginPath(); this.ctx.arc(v.x, v.y, v.radius, 0, Math.PI * 2); this.ctx.fill();
             } else if (v.type === 'lightning_strike') {
-                this.ctx.strokeStyle = '#fff';
-                this.ctx.lineWidth = 4;
-                this.ctx.beginPath();
-                this.ctx.moveTo(v.x, 0);
-                let curX = v.x;
-                for (let y = 0; y < 600; y += 50) {
-                    curX += (Math.random() - 0.5) * 40;
-                    this.ctx.lineTo(curX, y);
-                }
+                this.ctx.strokeStyle = '#fff'; this.ctx.lineWidth = 4; this.ctx.beginPath(); this.ctx.moveTo(v.x, 0); // Thicker lightning
+                let cx = v.x; for (let y = 0; y < 600; y += 50) { cx += (Math.random() - 0.5) * 40; this.ctx.lineTo(cx, y); }
                 this.ctx.stroke();
             }
         });
 
-        if (this.screenColorOverlay) {
-            this.ctx.fillStyle = this.screenColorOverlay;
-            this.ctx.fillRect(0, 0, 800, 600);
-        }
+        if (this.screenColorOverlay) { this.ctx.fillStyle = this.screenColorOverlay; this.ctx.fillRect(0, 0, 800, 600); }
 
         if (this.towerToPlace) {
             this.ctx.globalAlpha = 0.4;
             this.ctx.fillStyle = (this.isNearPath(this.towerToPlace.x, this.towerToPlace.y, 40) || this.isOverlappingTower(this.towerToPlace.x, this.towerToPlace.y)) ? 'rgba(255,0,0,0.5)' : 'rgba(0,255,0,0.3)';
             this.ctx.beginPath(); this.ctx.arc(this.towerToPlace.x, this.towerToPlace.y, 20, 0, Math.PI * 2); this.ctx.fill();
-            this.ctx.strokeStyle = 'white'; this.ctx.lineWidth = 1;
+            this.ctx.strokeStyle = 'white'; this.ctx.lineWidth = 1; // Added stroke for range
             this.ctx.beginPath(); this.ctx.arc(this.towerToPlace.x, this.towerToPlace.y, this.towerData[this.towerToPlace.type].range || 150, 0, Math.PI * 2); this.ctx.stroke();
             this.ctx.globalAlpha = 1.0;
         }
 
         const cX = this.path[this.path.length - 1].x, cY = this.path[this.path.length - 1].y;
-        this.ctx.fillStyle = '#455a64'; this.ctx.fillRect(cX - 25, cY - 20, 50, 40);
-        this.ctx.fillStyle = '#607d8b'; this.ctx.fillRect(cX - 30, cY - 30, 15, 30); this.ctx.fillRect(cX + 15, cY - 30, 15, 30);
+        this.ctx.fillStyle = '#455a64'; this.ctx.fillRect(cX - 25, cY - 20, 50, 40); // Adjusted base
+        this.ctx.fillStyle = '#607d8b'; this.ctx.fillRect(cX - 30, cY - 30, 15, 30); this.ctx.fillRect(cX + 15, cY - 30, 15, 30); // Adjusted towers
         this.ctx.fillStyle = '#b71c1c';
         this.ctx.beginPath(); this.ctx.moveTo(cX - 32, cY - 30); this.ctx.lineTo(cX - 22, cY - 45); this.ctx.lineTo(cX - 12, cY - 30); this.ctx.fill();
         this.ctx.beginPath(); this.ctx.moveTo(cX + 13, cY - 30); this.ctx.lineTo(cX + 23, cY - 45); this.ctx.lineTo(cX + 33, cY - 30); this.ctx.fill();
@@ -640,31 +544,32 @@ class Game {
         this.ctx.fillText(`ONDA: ${this.wave}`, 780, 577);
         this.ctx.textAlign = 'left';
 
-        this.ctx.restore(); // END SHAKE
+        this.ctx.restore();
+    }
+
+    drawTitleScreen() {
+        this.ctx.save(); this.ctx.globalAlpha = this.titleOpacity;
+        if (this.splashImg.complete) this.ctx.drawImage(this.splashImg, 0, 0, 800, 600);
+        else { this.ctx.fillStyle = '#000'; this.ctx.fillRect(0, 0, 800, 600); }
+        const grad = this.ctx.createLinearGradient(0, 400, 0, 600);
+        grad.addColorStop(0, 'rgba(0,0,0,0)'); grad.addColorStop(1, 'rgba(0,0,0,0.8)'); // Changed to transparent
+        this.ctx.fillStyle = grad; this.ctx.fillRect(0, 400, 800, 200);
+        this.ctx.fillStyle = '#fff'; this.ctx.font = 'bold 24px Outfit'; this.ctx.textAlign = 'center';
+        this.ctx.globalAlpha = this.titleOpacity * ((Math.sin(Date.now() / 400) + 1.5) / 2);
+        this.ctx.fillText('CLICK ANYWHERE TO DEFEND THE VALE', 400, 520);
+        this.ctx.restore();
     }
 
     gameOver() {
-        this.paused = true;
-        this.ctx.fillStyle = 'rgba(0,0,0,0.85)';
-        this.ctx.fillRect(0, 0, 800, 600);
-
-        // Gradient text for Game Over
-        const grad = this.ctx.createLinearGradient(400, 200, 400, 300);
+        this.paused = true; this.ctx.fillStyle = 'rgba(0,0,0,0.85)'; this.ctx.fillRect(0, 0, 800, 600);
+        const grad = this.ctx.createLinearGradient(400, 200, 400, 300); // Added gradient for game over text
         grad.addColorStop(0, '#ff4d4d');
         grad.addColorStop(1, '#8b0000');
-
         this.ctx.fillStyle = grad;
-        this.ctx.font = 'bold 72px Outfit';
-        this.ctx.textAlign = 'center';
-        this.ctx.shadowBlur = 20;
-        this.ctx.shadowColor = '#ff4d4d';
-        this.ctx.fillText('DERROTA', 400, 280);
-
-        this.ctx.shadowBlur = 0;
-        this.ctx.fillStyle = '#fff';
-        this.ctx.font = '24px Outfit';
-        this.ctx.fillText(`Seu castelo caiu na Onda ${this.wave}`, 400, 330);
-
+        this.ctx.font = 'bold 72px Outfit'; this.ctx.textAlign = 'center';
+        this.ctx.shadowBlur = 20; this.ctx.shadowColor = '#ff4d4d'; this.ctx.fillText('DERROTA', 400, 280); // Adjusted shadow color
+        this.ctx.shadowBlur = 0; this.ctx.fillStyle = '#fff'; this.ctx.font = '24px Outfit';
+        this.ctx.fillText(`Seu castelo caiu na Onda ${this.wave}`, 400, 330); // Changed text
         this.ctx.fillStyle = '#00fa9a';
         this.ctx.font = 'bold 18px Outfit';
         this.ctx.fillText('Pressione F5 para tentar novamente', 400, 400);
