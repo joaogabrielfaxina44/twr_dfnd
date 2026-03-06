@@ -187,29 +187,88 @@ body {
 
 .skill-btn {
     position: relative;
-    background: linear-gradient(135deg, #1e1e2f, #2d2d44);
-    border: 1px solid var(--glass-border);
+    background: #1a1a2e;
+    border: 2px solid var(--glass-border);
     padding: 12px;
-    border-radius: 10px;
+    border-radius: 12px;
     color: #fff;
     font-family: inherit;
     text-align: left;
     cursor: pointer;
     overflow: hidden;
-    transition: all 0.2s;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
-.skill-btn:hover {
+.skill-btn:hover:not(:disabled) {
     border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 250, 154, 0.2);
+}
+
+.skill-btn:active:not(:disabled) {
+    transform: scale(0.95);
+}
+
+.skill-btn.activated {
+    animation: skillPulse 0.4s ease-out;
+}
+
+@keyframes skillPulse {
+    0% {
+        transform: scale(1);
+        filter: brightness(1);
+    }
+
+    50% {
+        transform: scale(1.1);
+        filter: brightness(2);
+    }
+
+    100% {
+        transform: scale(1);
+        filter: brightness(1);
+    }
+}
+
+/* Backgrounds based on element */
+#skill-arrows {
+    background: linear-gradient(135deg, #5d4037, #3e2723);
+    border-color: #8d6e63;
+}
+
+#skill-fire {
+    background: linear-gradient(135deg, #d84315, #bf360c);
+    border-color: #ff7043;
+}
+
+#skill-ice {
+    background: linear-gradient(135deg, #0277bd, #01579b);
+    border-color: #4fc3f7;
+}
+
+#skill-lightning {
+    background: linear-gradient(135deg, #6a1b9a, #4a148c);
+    border-color: #ba68c8;
+}
+
+#skill-annihilation {
+    background: linear-gradient(135deg, #f9a825, #f57f17);
+    border-color: #fff176;
 }
 
 .skill-cooldown {
     position: absolute;
-    bottom: 0;
+    top: 0;
     left: 0;
     width: 100%;
     height: 0%;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: grayscale(1);
+    transition: height 0.1s linear;
 }
 
 .wave-info {

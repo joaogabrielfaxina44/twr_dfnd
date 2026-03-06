@@ -15,7 +15,10 @@ class Game {
         this.enemiesInWave = 10;
         this.enemiesSpawned = 0;
         this.paused = true;
-
+        this.vfxLayer = [];
+        this.screenShake = 0;
+        this.screenColorOverlay = null;
+        this.overlayTimer = 0;
         this.path = [
             { x: -20, y: 300 },
             { x: 100, y: 300 },
@@ -285,16 +288,74 @@ class Game {
     castSkill(id) {
         const skill = this.skills[id];
         if (!skill || this.gold < skill.cost || Date.now() - (skill.lastUsed || 0) < skill.cooldown) return;
+
         this.gold -= skill.cost;
         skill.lastUsed = Date.now();
-        switch (id) {
-            case 'arrows': this.enemies.forEach(e => e.takeDamage(10)); this.createMagicEffect('purple', 50); break;
-            case 'fire': this.enemies.forEach(e => { e.takeDamage(15); e.burn(5); }); this.createMagicEffect('orange', 80); break;
-            case 'ice': this.enemies.forEach(e => { e.takeDamage(5); e.slow(0.5, 5000); }); this.createMagicEffect('cyan', 60); break;
-            case 'lightning': this.enemies.forEach(e => { if (Math.random() > 0.5) e.takeDamage(100); }); this.createMagicEffect('yellow', 100); break;
-            case 'annihilation': this.enemies.forEach(e => e.takeDamage(e.hp * 0.5)); this.createMagicEffect('white', 200); break;
+
+        // Visual feedback on button
+        const btn = document.getElementById('skill-' + id);
+        if (btn) {
+            btn.classList.add('activated');
+            setTimeout(() => btn.classList.remove('activated'), 400);
         }
+
+        this.triggerSuperAttack(id);
         this.updateHUD();
+    }
+
+    triggerSuperAttack(type) {
+        switch (type) {
+            case 'arrows':
+                this.screenShake = 15;
+                for (let i = 0; i < 60; i++) {
+                    this.vfxLayer.push({
+                        type: 'arrow',
+                        x: Math.random() * 800,
+                        y: -50 - Math.random() * 200,
+                        speed: 15 + Math.random() * 10,
+                        life: 100
+                    });
+                }
+                setTimeout(() => {
+                    this.enemies.forEach(e => e.takeDamage(15));
+                    this.createMagicEffect('#fff', 30);
+                }, 400);
+                break;
+
+            case 'fire':
+                this.screenShake = 25;
+                this.vfxLayer.push({ type: 'explosion', x: 400, y: 300, radius: 0, maxRadius: 400, life: 100 });
+                this.enemies.forEach(e => { e.takeDamage(25); e.burn(8); });
+                break;
+
+            case 'ice':
+                this.screenColorOverlay = 'rgba(0, 191, 255, 0.3)';
+                this.overlayTimer = 5000;
+                this.enemies.forEach(e => { e.takeDamage(5); e.slow(0.7, 5000); });
+                break;
+
+            case 'lightning':
+                this.screenShake = 10;
+                for (let i = 0; i < 8; i++) {
+                    setTimeout(() => {
+                        const tx = Math.random() * 800;
+                        this.vfxLayer.push({ type: 'lightning_strike', x: tx, life: 100 });
+                        this.enemies.forEach(e => {
+                            if (Math.abs(e.x - tx) < 100) e.takeDamage(40);
+                        });
+                    }, i * 150);
+                }
+                break;
+
+            case 'annihilation':
+                this.screenColorOverlay = 'rgba(255, 255, 255, 0.8)';
+                this.overlayTimer = 1000;
+                this.screenShake = 40;
+                setTimeout(() => {
+                    this.enemies.forEach(e => e.takeDamage(e.hp * 0.7 + 100));
+                }, 500);
+                break;
+        }
     }
 
     createMagicEffect(color, count, x = null, y = null) {
@@ -315,6 +376,24 @@ class Game {
     }
 
     update(delta) {
+        if (this.screenShake > 0) this.screenShake -= delta * 0.05;
+        if (this.overlayTimer > 0) this.overlayTimer -= delta;
+        else this.screenColorOverlay = null;
+
+        this.vfxLayer.forEach((v, i) => {
+            if (v.type === 'arrow') {
+                v.y += v.speed;
+                if (v.y > 700) this.vfxLayer.splice(i, 1);
+            } else if (v.type === 'explosion') {
+                v.radius += 10;
+                v.life -= 2;
+                if (v.life <= 0) this.vfxLayer.splice(i, 1);
+            } else if (v.type === 'lightning_strike') {
+                v.life -= 10;
+                if (v.life <= 0) this.vfxLayer.splice(i, 1);
+            }
+        });
+
         if (this.enemies.length === 0 && this.enemiesSpawned >= this.enemiesInWave) {
             const reward = 100 + (this.wave * 50);
             this.gold += reward; this.wave++; this.enemiesSpawned = 0;
@@ -355,6 +434,13 @@ class Game {
     }
 
     draw() {
+        this.ctx.save();
+        if (this.screenShake > 0) {
+            const rx = (Math.random() - 0.5) * this.screenShake;
+            const ry = (Math.random() - 0.5) * this.screenShake;
+            this.ctx.translate(rx, ry);
+        }
+
         this.ctx.drawImage(this.bgCanvas, 0, 0);
 
         // Selection Aura and Range (Canvas side)
@@ -384,7 +470,48 @@ class Game {
         this.enemies.forEach(e => e.draw(this.ctx));
         this.towers.forEach(t => t.draw(this.ctx));
         this.projectiles.forEach(p => p.draw(this.ctx));
-        this.particles.forEach(p => p.draw(this.ctx));
+        this.particles.forEach(p => {
+            if (typeof p.draw === 'function') p.draw(this.ctx);
+            else {
+                this.ctx.globalAlpha = p.life / 100;
+                this.ctx.fillStyle = p.color;
+                this.ctx.fillRect(p.x, p.y, 4, 4);
+                this.ctx.globalAlpha = 1.0;
+            }
+        });
+
+        // DRAW VFX LAYER
+        this.vfxLayer.forEach(v => {
+            if (v.type === 'arrow') {
+                this.ctx.fillStyle = '#eee';
+                this.ctx.fillRect(v.x, v.y, 2, 20);
+            } else if (v.type === 'explosion') {
+                this.ctx.beginPath();
+                const g = this.ctx.createRadialGradient(v.x, v.y, 0, v.x, v.y, v.radius);
+                g.addColorStop(0, 'rgba(255,255,255,1)');
+                g.addColorStop(0.2, 'rgba(255,200,0,0.8)');
+                g.addColorStop(1, 'rgba(255,0,0,0)');
+                this.ctx.fillStyle = g;
+                this.ctx.arc(v.x, v.y, v.radius, 0, Math.PI * 2);
+                this.ctx.fill();
+            } else if (v.type === 'lightning_strike') {
+                this.ctx.strokeStyle = '#fff';
+                this.ctx.lineWidth = 4;
+                this.ctx.beginPath();
+                this.ctx.moveTo(v.x, 0);
+                let curX = v.x;
+                for (let y = 0; y < 600; y += 50) {
+                    curX += (Math.random() - 0.5) * 40;
+                    this.ctx.lineTo(curX, y);
+                }
+                this.ctx.stroke();
+            }
+        });
+
+        if (this.screenColorOverlay) {
+            this.ctx.fillStyle = this.screenColorOverlay;
+            this.ctx.fillRect(0, 0, 800, 600);
+        }
 
         if (this.towerToPlace) {
             this.ctx.globalAlpha = 0.4;
@@ -410,6 +537,8 @@ class Game {
         this.ctx.textAlign = 'right';
         this.ctx.fillText(`ONDA: ${this.wave}`, 780, 577);
         this.ctx.textAlign = 'left';
+
+        this.ctx.restore(); // END SHAKE
     }
 
     gameOver() {
