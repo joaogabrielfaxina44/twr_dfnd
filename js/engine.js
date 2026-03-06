@@ -16,6 +16,7 @@ class Game {
         this.enemiesSpawned = 0;
         this.paused = true;
         this.vfxLayer = [];
+        this.decorations = []; // Environmental elements
         this.screenShake = 0;
         this.screenColorOverlay = null;
         this.overlayTimer = 0;
@@ -85,38 +86,103 @@ class Game {
         this.bgCanvas.height = 600;
         const bctx = this.bgCanvas.getContext('2d');
 
-        // Forest Grass
-        bctx.fillStyle = '#2e7d32';
-        bctx.fillRect(0, 0, 800, 600);
-        for (let i = 0; i < 3000; i++) {
-            bctx.fillStyle = Math.random() > 0.5 ? '#1b5e20' : '#388e3c';
-            bctx.fillRect(Math.random() * 800, Math.random() * 600, 2, 2);
-        }
-        for (let i = 0; i < 500; i++) {
-            bctx.fillStyle = '#4caf50';
-            bctx.fillRect(Math.random() * 800, Math.random() * 600, 2, 4);
-        }
+        // --- PROC-GEN PIXEL ART TEXTURES ---
+        const generatePixelTexture = (w, h, setup) => {
+            const c = document.createElement('canvas');
+            c.width = w; c.height = h;
+            const tx = c.getContext('2d');
+            tx.imageSmoothingEnabled = false;
+            setup(tx);
+            return c;
+        };
 
-        // Dirt Path
-        bctx.strokeStyle = '#795548';
-        bctx.lineWidth = 44;
-        bctx.lineCap = 'round';
-        bctx.lineJoin = 'round';
+        // 1. Forest Ground Texture (Tilable)
+        const grassTex = generatePixelTexture(64, 64, (ctx) => {
+            // Base green
+            ctx.fillStyle = '#2e7d32'; ctx.fillRect(0, 0, 64, 64);
+            // Grass blades and soil variations
+            for (let i = 0; i < 120; i++) {
+                const x = Math.floor(Math.random() * 64), y = Math.floor(Math.random() * 64);
+                ctx.fillStyle = Math.random() > 0.5 ? '#1b5e20' : '#388e3c';
+                ctx.fillRect(x, y, 2, 2);
+            }
+            // Flowers
+            for (let i = 0; i < 8; i++) {
+                const x = Math.floor(Math.random() * 60), y = Math.floor(Math.random() * 60);
+                ctx.fillStyle = Math.random() > 0.5 ? '#ffeb3b' : '#2196f3'; // Yellow/Blue
+                ctx.fillRect(x, y, 2, 2);
+            }
+            // Leaves/Pebbles
+            for (let i = 0; i < 6; i++) {
+                const x = Math.floor(Math.random() * 60), y = Math.floor(Math.random() * 60);
+                ctx.fillStyle = Math.random() > 0.5 ? '#8d6e63' : '#78909c';
+                ctx.fillRect(x, y, 3, 2);
+            }
+        });
+
+        // 2. Dirt Path Texture (Tilable)
+        const dirtTex = generatePixelTexture(32, 32, (ctx) => {
+            ctx.fillStyle = '#795548'; ctx.fillRect(0, 0, 32, 32);
+            for (let i = 0; i < 40; i++) {
+                ctx.fillStyle = Math.random() > 0.6 ? '#6d4c41' : '#8d6e63';
+                ctx.fillRect(Math.floor(Math.random() * 32), Math.floor(Math.random() * 32), 2, 2);
+            }
+            // Roots/Stones
+            for (let i = 0; i < 3; i++) {
+                ctx.fillStyle = '#4e342e';
+                ctx.fillRect(Math.floor(Math.random() * 28), Math.floor(Math.random() * 28), 4, 1);
+            }
+        });
+
+        // 3. Tree Sprite (Simple but detailed pixel art)
+        this.treeSprite = generatePixelTexture(40, 50, (ctx) => {
+            // Trunk
+            ctx.fillStyle = '#3e2723'; ctx.fillRect(16, 25, 8, 20); // main
+            ctx.fillStyle = '#4e342e'; ctx.fillRect(14, 40, 12, 5); // roots
+            // Foliage
+            ctx.fillStyle = '#1b5e20';
+            ctx.beginPath(); ctx.arc(20, 15, 18, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#2e7d32'; ctx.beginPath(); ctx.arc(10, 10, 12, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(30, 10, 12, 0, Math.PI * 2); ctx.fill();
+            // Dots/Detail
+            ctx.fillStyle = '#388e3c';
+            for (let i = 0; i < 15; i++) ctx.fillRect(Math.random() * 30 + 5, Math.random() * 20 + 5, 2, 2);
+        });
+
+        // --- DRAW BACKGROUND ---
+        const grassPattern = bctx.createPattern(grassTex, 'repeat');
+        bctx.fillStyle = grassPattern;
+        bctx.fillRect(0, 0, 800, 600);
+
+        // Path (Using Dirt Pattern)
+        const dirtPattern = bctx.createPattern(dirtTex, 'repeat');
+        bctx.lineWidth = 44; bctx.lineCap = 'round'; bctx.lineJoin = 'round';
+        bctx.strokeStyle = '#5d4037'; // Border/Shadow
         bctx.beginPath();
         bctx.moveTo(this.path[0].x, this.path[0].y);
         this.path.forEach(p => bctx.lineTo(p.x, p.y));
         bctx.stroke();
 
-        bctx.strokeStyle = '#8d6e63';
+        bctx.strokeStyle = dirtPattern;
         bctx.lineWidth = 36;
         bctx.stroke();
 
-        // Path stones
-        for (let i = 0; i < 1500; i++) {
-            const x = Math.random() * 800, y = Math.random() * 600;
-            if (this.isNearPath(x, y, 22)) {
-                bctx.fillStyle = Math.random() > 0.7 ? '#5d4037' : '#9c7e6e';
-                bctx.fillRect(x, y, 2, 2);
+        // Edge "Grass Patches" along path
+        bctx.strokeStyle = '#2e7d32'; bctx.lineWidth = 46; bctx.globalAlpha = 0.3;
+        bctx.stroke(); bctx.globalAlpha = 1.0;
+
+        // --- DECORATIONS (Trees/Rocks) ---
+        this.decorations = [];
+        for (let i = 0; i < 25; i++) {
+            let x, y;
+            let attempts = 0;
+            do {
+                x = Math.random() * 760 + 20; y = Math.random() * 540 + 20;
+                attempts++;
+            } while ((this.isNearPath(x, y, 60) || this.isOverlappingTower(x, y)) && attempts < 100);
+
+            if (attempts < 100) {
+                this.decorations.push({ x, y, sprite: this.treeSprite });
             }
         }
     }
@@ -456,6 +522,29 @@ class Game {
 
         this.ctx.drawImage(this.bgCanvas, 0, 0);
 
+        // Draw environmental decorations (Trees)
+        this.decorations.forEach(d => {
+            this.ctx.drawImage(d.sprite, d.x - 20, d.y - 40);
+        });
+
+        // Tower Ground Glows (Ice / Arcane)
+        this.towers.forEach(t => {
+            if (t.type === 'ice' || t.type === 'magic') {
+                const pulse = Math.sin(Date.now() / 600) * 5;
+                const radius = 25 + pulse + (t.level * 2);
+                const g = this.ctx.createRadialGradient(t.x, t.y, 0, t.x, t.y, radius);
+                if (t.type === 'ice') {
+                    g.addColorStop(0, 'rgba(0, 191, 255, 0.4)');
+                    g.addColorStop(1, 'rgba(0, 191, 255, 0)');
+                } else {
+                    g.addColorStop(0, 'rgba(234, 128, 252, 0.4)');
+                    g.addColorStop(1, 'rgba(234, 128, 252, 0)');
+                }
+                this.ctx.fillStyle = g;
+                this.ctx.beginPath(); this.ctx.arc(t.x, t.y, radius, 0, Math.PI * 2); this.ctx.fill();
+            }
+        });
+
         // Selection Aura and Range (Canvas side)
         if (this.selectedActiveTower) {
             const t = this.selectedActiveTower;
@@ -615,6 +704,12 @@ class Enemy {
         const md = this.tempSpeed * (delta / 16);
         if (d < md) { this.x = target.x; this.y = target.y; this.pathIndex++; }
         else { this.x += (dx / d) * md; this.y += (dy / d) * md; }
+
+        // Path Dust VFX
+        if (Math.random() > 0.85 && this.game.isNearPath(this.x, this.y, 25)) {
+            this.game.particles.push(new Particle(this.x, this.y, '#9c7e6e', true));
+        }
+
         if (this.hp <= 0) this.dead = true;
     }
     takeDamage(dmg, ignoreS = false) {
@@ -978,9 +1073,28 @@ class Projectile {
 }
 
 class Particle {
-    constructor(x, y, color) { this.x = x; this.y = y; this.color = color; this.vx = (Math.random() - 0.5) * 5; this.vy = (Math.random() - 0.5) * 5; this.life = 100; }
-    update() { this.x += this.vx; this.y += this.vy; this.life -= 2; }
-    draw(ctx) { ctx.globalAlpha = this.life / 100; ctx.fillStyle = this.color; ctx.fillRect(this.x, this.y, 4, 4); ctx.globalAlpha = 1.0; }
+    constructor(x, y, color, isDust = false) {
+        this.x = x; this.y = y; this.color = color;
+        this.vx = (Math.random() - 0.5) * (isDust ? 1 : 5);
+        this.vy = (Math.random() - 0.5) * (isDust ? 1 : 5);
+        this.life = 100;
+        this.size = isDust ? Math.random() * 4 + 2 : 4;
+        this.isDust = isDust;
+    }
+    update() {
+        this.x += this.vx; this.y += this.vy;
+        this.life -= this.isDust ? 3 : 2;
+    }
+    draw(ctx) {
+        ctx.globalAlpha = this.life / 100;
+        ctx.fillStyle = this.color;
+        if (this.isDust) {
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.size * (this.life / 100), 0, Math.PI * 2); ctx.fill();
+        } else {
+            ctx.fillRect(this.x, this.y, this.size, this.size);
+        }
+        ctx.globalAlpha = 1.0;
+    }
 }
 
 window.onload = () => {
