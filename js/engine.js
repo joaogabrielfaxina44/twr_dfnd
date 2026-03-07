@@ -29,9 +29,15 @@ class Game {
 
         // Load Splash Screen (Relative path or fallback)
         this.splashImg = new Image();
-        this.splashImg.src = 'splash.jpg'; // Path should be relative to project
-        this.splashImg.onerror = () => { console.warn("Splash image not found, using fallback."); };
-        this.splashImg.onload = () => { this.titleFadeIn = true; };
+        this.splashImg.src = 'splash.jpg';
+        this.splashImg.onload = () => { this.titleOpacity = 1; this.titleFadeIn = true; };
+        this.splashImg.onerror = () => {
+            console.warn("Splash image not found.");
+            this.titleOpacity = 1;
+            this.titleFadeIn = true;
+        };
+        // Hard fallback to make sure text appears after 500ms
+        setTimeout(() => { if (this.titleOpacity === 0) this.titleOpacity = 1; }, 500);
 
         this.path = [
             { x: -20, y: 300 },
@@ -94,6 +100,12 @@ class Game {
         window.addEventListener('resize', () => {
             this.updateHUD();
         });
+
+        // Failsafe: start game on any document click if in title
+        document.addEventListener('mousedown', () => {
+            if (this.gameState === 'title') this.start();
+        });
+
         this.updateHUD();
     }
 
@@ -224,17 +236,23 @@ class Game {
 
     start() {
         if (this.gameState === 'title' && !this.starting) {
+            console.log("Game Starting...");
             this.starting = true;
             this.titleFadeIn = false;
+
+            // Hide HTML overlay immediately to show progress
+            const ss = document.getElementById('start-screen');
+            if (ss) ss.style.opacity = '0';
+
             setTimeout(() => {
                 this.gameState = 'playing';
                 this.paused = false;
-                const ss = document.getElementById('start-screen');
                 if (ss) ss.style.display = 'none';
                 this.lastTime = performance.now();
                 this.starting = false;
                 this.updateHUD(true);
-            }, 1000);
+                console.log("Game State: Playing");
+            }, 800);
         }
     }
 
