@@ -27,14 +27,14 @@ class Game {
         this.starting = false;
         this.lastHUDState = {};
 
-        // Load Splash Screen (Optimized for .png and .jpg)
+        // Load Splash Screen (Primary JPG as found in user folder)
         this.splashImg = new Image();
-        this.splashImg.src = 'splash.png';
+        this.splashImg.src = 'splash.jpg';
         this.splashImg.onload = () => { this.titleOpacity = 1; this.titleFadeIn = true; };
         this.splashImg.onerror = () => {
             const ss = document.getElementById('start-screen');
             if (ss) ss.classList.add('fallback-bg');
-            this.splashImg.src = 'splash.jpg';
+            this.splashImg.src = 'splash.png';
             this.splashImg.onerror = () => {
                 console.warn("Title image not found. Using fallback style.");
                 this.titleOpacity = 1;

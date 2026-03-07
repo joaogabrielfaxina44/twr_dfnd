@@ -14,7 +14,7 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: #0d0d16 url('splash.png') no-repeat center center;
+            background: #0d0d16 url('splash.jpg') no-repeat center center;
             background-size: cover;
             z-index: 9999;
             display: flex;
@@ -28,9 +28,9 @@
             transition: opacity 0.8s ease;
         }
 
-        /* Fallback for start screen background if png is missing */
+        /* Fallback for start screen background if jpg is missing */
         #start-screen.fallback-bg {
-            background-image: url('splash.jpg');
+            background-image: url('splash.png');
         }
 
         #start-screen::before {
