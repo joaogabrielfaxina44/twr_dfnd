@@ -176,23 +176,7 @@ class Game {
         bctx.stroke();
 
         this.decorations = [];
-        let attempts = 0;
-        while (this.decorations.length < 35 && attempts < 200) {
-            let x = Math.random() * 760 + 20, y = Math.random() * 540 + 20;
-            // Trees need more space (80px), crystals need less (45px)
-            const type = Math.random() > 0.4 ? 'tree' : 'crystal';
-            const minDist = type === 'tree' ? 85 : 55;
-
-            if (!this.isNearPath(x, y, minDist)) {
-                this.decorations.push({ x, y, type });
-            }
-            attempts++;
-        }
-
         this.manaFireflies = [];
-        for (let i = 0; i < 12; i++) {
-            this.manaFireflies.push({ x: Math.random() * 800, y: Math.random() * 600, vx: (Math.random() - 0.5) * 0.5, vy: (Math.random() - 0.5) * 0.5, color: '#b2ebf2' });
-        }
     }
 
     updateHUD(force = false) {
@@ -446,12 +430,7 @@ class Game {
         if (this.overlayTimer > 0) this.overlayTimer -= delta;
         else this.screenColorOverlay = null;
 
-        this.manaFireflies.forEach(f => {
-            f.x += f.vx; f.y += f.vy;
-            if (f.x < 0 || f.x > 800) f.vx *= -1;
-            if (f.y < 0 || f.y > 600) f.vy *= -1;
-        });
-
+        // Removed fireflies and vfx update logic for basic elements
         this.vfxLayer.forEach((v, i) => {
             if (v.type === 'arrow') { v.y += v.speed; if (v.y > 700) this.vfxLayer.splice(i, 1); }
             else if (v.type === 'explosion') { v.radius += 10; v.life -= 2; if (v.life <= 0) this.vfxLayer.splice(i, 1); }
@@ -512,19 +491,7 @@ class Game {
         if (this.screenShake > 0) this.ctx.translate((Math.random() - 0.5) * this.screenShake, (Math.random() - 0.5) * this.screenShake);
         this.ctx.drawImage(this.bgCanvas, 0, 0);
 
-        this.decorations.forEach(d => {
-            this.ctx.fillStyle = 'rgba(0,0,0,0.3)'; this.ctx.beginPath(); this.ctx.ellipse(d.x, d.y + 10, 15, 8, 0, 0, Math.PI * 2); this.ctx.fill(); // Adjusted shadow
-            if (d.type === 'tree') this.ctx.drawImage(this.manaOakSprite, d.x - 30, d.y - 70);
-            else {
-                const b = Math.sin(Date.now() / 500) * 5;
-                this.ctx.drawImage(this.crystalSprite, d.x - 12, d.y - 20 + b);
-            }
-        });
-
-        this.manaFireflies.forEach(f => {
-            this.ctx.globalAlpha = (Math.sin(Date.now() / 300) + 1.5) / 2; // Adjusted pulse speed
-            this.ctx.fillStyle = f.color; this.ctx.beginPath(); this.ctx.arc(f.x, f.y, 2, 0, Math.PI * 2); this.ctx.fill(); this.ctx.globalAlpha = 1;
-        });
+        // Removed decorations and mana fireflies drawing
 
         this.towers.forEach(t => {
             if (t.type === 'ice' || t.type === 'magic') {
@@ -537,11 +504,9 @@ class Game {
 
         if (this.selectedActiveTower) {
             const t = this.selectedActiveTower;
-            this.ctx.beginPath(); this.ctx.fillStyle = 'rgba(255,255,255,0.1)'; this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'; this.ctx.lineWidth = 2; // Added stroke
-            this.ctx.arc(t.x, t.y, t.range, 0, Math.PI * 2); this.ctx.fill(); this.ctx.stroke(); // Fill and stroke
-            this.ctx.save(); // Save for glow
-            this.ctx.shadowBlur = 15; this.ctx.shadowColor = 'white'; this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'; this.ctx.lineWidth = 3; // Adjusted glow
-            this.ctx.beginPath(); this.ctx.arc(t.x, t.y, 22, 0, Math.PI * 2); this.ctx.stroke(); this.ctx.restore(); // Restore for glow
+            this.ctx.beginPath(); this.ctx.fillStyle = 'rgba(255,255,255,0.1)'; this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'; this.ctx.lineWidth = 2;
+            this.ctx.arc(t.x, t.y, t.range, 0, Math.PI * 2); this.ctx.fill(); this.ctx.stroke();
+            this.ctx.beginPath(); this.ctx.arc(t.x, t.y, 22, 0, Math.PI * 2); this.ctx.stroke();
         }
 
         this.enemies.forEach(e => e.draw(this.ctx));
@@ -662,8 +627,8 @@ class Enemy {
         if (d < md) { this.x = target.x; this.y = target.y; this.pathIndex++; }
         else { this.x += (dx / d) * md; this.y += (dy / d) * md; }
 
-        // Path Dust VFX
-        if (Math.random() > 0.85 && this.game.isNearPath(this.x, this.y, 25)) {
+        // Simplified Path Dust
+        if (Math.random() > 0.95 && this.game.isNearPath(this.x, this.y, 20)) {
             this.game.particles.push(new Particle(this.x, this.y, '#9c7e6e', true));
         }
 
@@ -972,12 +937,11 @@ class Projectile {
     }
     update(delta) {
         // Trail particles
-        if (Math.random() > 0.5) {
+        // Reduced trail particles for performance
+        if (Math.random() > 0.8) {
             let color = '#fff';
             if (this.type === 'fire') color = '#ff4500';
             if (this.type === 'ice') color = '#e3f2fd';
-            if (this.type === 'poison') color = '#4caf50';
-            if (this.type === 'magic') color = '#ea80fc';
             this.game.particles.push(new Particle(this.x, this.y, color));
         }
 
@@ -1040,7 +1004,7 @@ class Particle {
     }
     update() {
         this.x += this.vx; this.y += this.vy;
-        this.life -= this.isDust ? 3 : 2;
+        this.life -= this.isDust ? 10 : 5; // Faster fade to clear memory
     }
     draw(ctx) {
         ctx.globalAlpha = this.life / 100;
