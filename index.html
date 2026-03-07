@@ -14,19 +14,55 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: #0d0d16 url('splash.jpg.png') no-repeat center center;
-            background-size: contain;
-            /* Shows the full image without cropping */
+            background: #0d0d16 url('splash.jpg.png') no-repeat;
+            background-size: 100% 112%;
+            /* Pull the bottom (taskbar) off-screen */
+            background-position: center -50px;
+            /* Adjust vertical framing */
             z-index: 9999;
             display: flex;
             cursor: pointer;
             opacity: 1 !important;
             visibility: visible !important;
             flex-direction: column;
-            justify-content: center;
+            justify-content: flex-end;
             align-items: center;
             text-align: center;
             transition: opacity 0.8s ease;
+            overflow: hidden;
+        }
+
+        .blink-text {
+            color: #fff;
+            font-size: 1.8rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 22%;
+            /* Align with the artwork message */
+            text-shadow: 0 0 10px rgba(0, 0, 0, 1), 2px 2px 4px #000;
+            animation: pulseBlink 1.4s infinite;
+            pointer-events: none;
+            font-family: 'Outfit', sans-serif;
+            position: relative;
+            z-index: 10;
+        }
+
+        @keyframes pulseBlink {
+            0% {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.05);
+            }
+
+            100% {
+                opacity: 0;
+                transform: scale(0.95);
+            }
         }
 
         /* Fallback for start screen background if jpg is missing */
@@ -147,6 +183,7 @@
     <div id="game-container">
         <!-- Overlay Inicial - Clique em qualquer lugar para começar -->
         <div id="start-screen" onclick="game.start()">
+            <div class="blink-text">PRESS [START] TO DEFEND THE VALE</div>
         </div>
         <!-- Canvas de jogo principal -->
         <canvas id="game-canvas" width="800" height="600"></canvas>
