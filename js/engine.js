@@ -27,14 +27,19 @@ class Game {
         this.starting = false;
         this.lastHUDState = {};
 
-        // Load Splash Screen (Relative path or fallback)
+        // Load Splash Screen (Optimized for .png and .jpg)
         this.splashImg = new Image();
-        this.splashImg.src = 'splash.jpg';
+        this.splashImg.src = 'splash.png';
         this.splashImg.onload = () => { this.titleOpacity = 1; this.titleFadeIn = true; };
         this.splashImg.onerror = () => {
-            console.warn("Splash image not found.");
-            this.titleOpacity = 1;
-            this.titleFadeIn = true;
+            const ss = document.getElementById('start-screen');
+            if (ss) ss.classList.add('fallback-bg');
+            this.splashImg.src = 'splash.jpg';
+            this.splashImg.onerror = () => {
+                console.warn("Title image not found. Using fallback style.");
+                this.titleOpacity = 1;
+                this.titleFadeIn = true;
+            };
         };
         // Hard fallback to make sure text appears after 500ms
         setTimeout(() => { if (this.titleOpacity === 0) this.titleOpacity = 1; }, 500);
