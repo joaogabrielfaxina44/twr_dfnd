@@ -15,16 +15,17 @@
             width: 100vw;
             height: 100vh;
             background: #0d0d16 url('splash.jpg.png') no-repeat center center;
-            background-size: cover;
+            background-size: contain;
+            /* Shows the full image without cropping */
             z-index: 9999;
             display: flex;
+            cursor: pointer;
             opacity: 1 !important;
             visibility: visible !important;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             text-align: center;
-            animation: kenBurns 20s infinite alternate;
             transition: opacity 0.8s ease;
         }
 
@@ -144,14 +145,8 @@
     </div>
 
     <div id="game-container">
-        <!-- Overlay Inicial -->
-        <div id="start-screen">
-            <div class="start-card" style="background: rgba(0, 0, 0, 0.6); padding: 50px;">
-                <!-- O título agora está na imagem, então usamos apenas o botão -->
-                <button class="start-btn" onclick="game.start()">INICIAR DEFESA</button>
-                <p style="color: #fff; margin-top: 20px; font-weight: bold; text-shadow: 2px 2px 4px #000;">PRESSIONE
-                    PARA COMEÇAR</p>
-            </div>
+        <!-- Overlay Inicial - Clique em qualquer lugar para começar -->
+        <div id="start-screen" onclick="game.start()">
         </div>
         <!-- Canvas de jogo principal -->
         <canvas id="game-canvas" width="800" height="600"></canvas>
