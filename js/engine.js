@@ -101,10 +101,9 @@ class Game {
             this.updateHUD();
         });
 
-        // Failsafe: start game on any document click if in title
-        document.addEventListener('mousedown', () => {
-            if (this.gameState === 'title') this.start();
-        });
+        // Failsafe: start game on any document click ONLY if we don't have the high-end button
+        // We actually want the user to click the specifically designed button now.
+        // So we remove the global document click that starts the game instantly.
 
         this.updateHUD();
     }
@@ -602,16 +601,15 @@ class Game {
     }
 
     drawTitleScreen() {
-        this.ctx.save(); this.ctx.globalAlpha = this.titleOpacity;
-        if (this.splashImg.complete) this.ctx.drawImage(this.splashImg, 0, 0, 800, 600);
-        else { this.ctx.fillStyle = '#000'; this.ctx.fillRect(0, 0, 800, 600); }
-        const grad = this.ctx.createLinearGradient(0, 400, 0, 600);
-        grad.addColorStop(0, 'rgba(0,0,0,0)'); grad.addColorStop(1, 'rgba(0,0,0,0.8)'); // Changed to transparent
-        this.ctx.fillStyle = grad; this.ctx.fillRect(0, 400, 800, 200);
-        this.ctx.fillStyle = '#fff'; this.ctx.font = 'bold 24px Outfit'; this.ctx.textAlign = 'center';
-        this.ctx.globalAlpha = this.titleOpacity * ((Math.sin(Date.now() / 400) + 1.5) / 2);
-        this.ctx.fillText('CLICK ANYWHERE TO DEFEND THE VALE', 400, 520);
-        this.ctx.restore();
+        // Disable canvas title drawing in favor of the HTML overlay
+        // This prevents the "Click to defend" text from appearing over our new UI
+        this.ctx.fillStyle = '#000';
+        this.ctx.fillRect(0, 0, 800, 600);
+        if (this.splashImg.complete && this.splashImg.width > 0) {
+            this.ctx.globalAlpha = 0.3; // Very subtle preview
+            this.ctx.drawImage(this.splashImg, 0, 0, 800, 600);
+            this.ctx.globalAlpha = 1.0;
+        }
     }
 
     gameOver() {
