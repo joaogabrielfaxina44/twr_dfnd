@@ -24,10 +24,13 @@ class Game {
         this.overlayTimer = 0;
         this.titleOpacity = 0;
         this.titleFadeIn = true;
+        this.starting = false;
+        this.lastHUDState = {};
 
-        // Load Splash Screen
+        // Load Splash Screen (Relative path or fallback)
         this.splashImg = new Image();
-        this.splashImg.src = 'C:\\Users\\joaog\\.gemini\\antigravity\\brain\\6d0cc51a-7d82-4787-b331-f17ef398531e\\media__1772831747523.jpg';
+        this.splashImg.src = 'splash.jpg'; // Path should be relative to project
+        this.splashImg.onerror = () => { console.warn("Splash image not found, using fallback."); };
         this.splashImg.onload = () => { this.titleFadeIn = true; };
 
         this.path = [
@@ -65,6 +68,10 @@ class Game {
 
         this.init();
         this.setupBackground();
+
+        // Start title loop immediately
+        this.lastTime = performance.now();
+        requestAnimationFrame((t) => this.loop(t));
     }
 
     init() {
@@ -158,11 +165,17 @@ class Game {
         bctx.stroke();
 
         this.decorations = [];
-        for (let i = 0; i < 28; i++) {
+        let attempts = 0;
+        while (this.decorations.length < 35 && attempts < 200) {
             let x = Math.random() * 760 + 20, y = Math.random() * 540 + 20;
-            if (!this.isNearPath(x, y, 60)) {
-                this.decorations.push({ x, y, type: Math.random() > 0.4 ? 'tree' : 'crystal' });
+            // Trees need more space (80px), crystals need less (45px)
+            const type = Math.random() > 0.4 ? 'tree' : 'crystal';
+            const minDist = type === 'tree' ? 85 : 55;
+
+            if (!this.isNearPath(x, y, minDist)) {
+                this.decorations.push({ x, y, type });
             }
+            attempts++;
         }
 
         this.manaFireflies = [];
@@ -171,40 +184,33 @@ class Game {
         }
     }
 
-    start() {
-        if (this.gameState === 'title') {
-            this.titleFadeIn = false;
-            setTimeout(() => {
-                this.gameState = 'playing';
-                this.paused = false;
-                const ss = document.getElementById('start-screen');
-                if (ss) ss.style.display = 'none';
-                this.lastTime = performance.now();
-                requestAnimationFrame((t) => this.loop(t));
-            }, 1000);
+    updateHUD(force = false) {
+        const state = { gold: Math.floor(this.gold), hp: this.hp, wave: this.wave };
+        if (!force && JSON.stringify(state) === JSON.stringify(this.lastHUDState)) {
+            // Check shop items too if performance allows, or just skip if state is same
         }
-    }
+        this.lastHUDState = state;
 
-    updateHUD() {
         const gV = document.getElementById('gold-value'), hV = document.getElementById('hp-value'), wV = document.getElementById('wave-number');
-        if (gV) gV.innerText = Math.floor(this.gold);
-        if (hV) hV.innerText = Math.max(0, this.hp);
-        if (wV) wV.innerText = this.wave;
+        if (gV) gV.innerText = state.gold;
+        if (hV) hV.innerText = Math.max(0, state.hp);
+        if (wV) wV.innerText = state.wave;
 
         Object.keys(this.towerData).forEach(type => {
             const el = document.getElementById('shop-' + type);
             if (el) {
-                if (this.gold < this.towerData[type].cost || this.towerLimits[type] >= 5) el.classList.add('disabled');
-                else el.classList.remove('disabled');
+                const canBuy = this.gold >= this.towerData[type].cost && this.towerLimits[type] < 5;
+                if (canBuy) el.classList.remove('disabled');
+                else el.classList.add('disabled');
             }
         });
 
         // Update Skills Cooldown and Cost
+        const now = Date.now();
         Object.keys(this.skills).forEach(id => {
             const skill = this.skills[id];
             const btn = document.getElementById('skill-' + id);
             if (!btn) return;
-            const now = Date.now();
             const elapsed = now - (skill.lastUsed || 0);
             const isCooldown = elapsed < skill.cooldown;
             btn.disabled = this.gold < skill.cost || isCooldown;
@@ -214,6 +220,22 @@ class Game {
                 else cooldownEl.style.height = '0%';
             }
         });
+    }
+
+    start() {
+        if (this.gameState === 'title' && !this.starting) {
+            this.starting = true;
+            this.titleFadeIn = false;
+            setTimeout(() => {
+                this.gameState = 'playing';
+                this.paused = false;
+                const ss = document.getElementById('start-screen');
+                if (ss) ss.style.display = 'none';
+                this.lastTime = performance.now();
+                this.starting = false;
+                this.updateHUD(true);
+            }, 1000);
+        }
     }
 
     handleMouseMove(e) { this.handleInput(e.clientX, e.clientY, false); }
@@ -260,12 +282,20 @@ class Game {
     }
 
     isNearPath(x, y, dist) {
+        const distSq = dist * dist;
         for (let i = 0; i < this.path.length - 1; i++) {
             const p1 = this.path[i], p2 = this.path[i + 1];
+
+            // Bounding box pre-check
+            const minX = Math.min(p1.x, p2.x) - dist, maxX = Math.max(p1.x, p2.x) + dist;
+            const minY = Math.min(p1.y, p2.y) - dist, maxY = Math.max(p1.y, p2.y) + dist;
+            if (x < minX || x > maxX || y < minY || y > maxY) continue;
+
             const L2 = (p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2;
             if (L2 === 0) continue;
             let t = Math.max(0, Math.min(1, ((x - p1.x) * (p2.x - p1.x) + (y - p1.y) * (p2.y - p1.y)) / L2));
-            if (Math.sqrt((x - (p1.x + t * (p2.x - p1.x))) ** 2 + (y - (p1.y + t * (p2.y - p1.y))) ** 2) < dist) return true;
+            const actualDistSq = (x - (p1.x + t * (p2.x - p1.x))) ** 2 + (y - (p1.y + t * (p2.y - p1.y))) ** 2;
+            if (actualDistSq < distSq) return true;
         }
         return false;
     }
@@ -380,7 +410,8 @@ class Game {
     }
 
     loop(time) {
-        const delta = time - (this.lastTime || time);
+        // Cap delta to 64ms (around 15fps) to prevent physics glitches during lag
+        const delta = Math.min(64, time - (this.lastTime || time));
         this.lastTime = time;
         if (this.gameState === 'title') {
             if (this.titleFadeIn) this.titleOpacity = Math.min(1, this.titleOpacity + delta * 0.001);
@@ -433,7 +464,7 @@ class Game {
             }
         }
 
-        [...this.enemies].forEach(e => {
+        this.enemies.forEach(e => {
             e.update(delta);
             if (e.dead) {
                 if (e.reachedEnd) { this.hp--; this.updateHUD(); }
@@ -445,12 +476,17 @@ class Game {
                         this.enemies.push(sub);
                     }
                 }
-                this.enemies = this.enemies.filter(en => en !== e);
             }
         });
-        [...this.towers].forEach(t => t.update(delta));
-        [...this.projectiles].forEach(p => { p.update(delta); if (p.dead) this.projectiles = this.projectiles.filter(pr => pr !== p); });
-        [...this.particles].forEach((p, i) => { p.update(delta); if (p.life <= 0) this.particles.splice(i, 1); });
+        this.enemies = this.enemies.filter(e => !e.dead);
+
+        this.towers.forEach(t => t.update(delta));
+
+        this.projectiles.forEach(p => p.update(delta));
+        this.projectiles = this.projectiles.filter(p => !p.dead);
+
+        this.particles.forEach(p => p.update(delta));
+        this.particles = this.particles.filter(p => p.life > 0);
     }
 
     draw() {
@@ -463,8 +499,8 @@ class Game {
             this.ctx.fillStyle = 'rgba(0,0,0,0.3)'; this.ctx.beginPath(); this.ctx.ellipse(d.x, d.y + 10, 15, 8, 0, 0, Math.PI * 2); this.ctx.fill(); // Adjusted shadow
             if (d.type === 'tree') this.ctx.drawImage(this.manaOakSprite, d.x - 30, d.y - 70);
             else {
-                const b = Math.sin(Date.now() / 500) * 5; this.ctx.drawImage(this.crystalSprite, d.x - 12, d.y - 20 + b); // Adjusted crystal position
-                this.ctx.shadowBlur = 10; this.ctx.shadowColor = '#00e5ff'; this.ctx.drawImage(this.crystalSprite, d.x - 12, d.y - 20 + b); this.ctx.shadowBlur = 0;
+                const b = Math.sin(Date.now() / 500) * 5;
+                this.ctx.drawImage(this.crystalSprite, d.x - 12, d.y - 20 + b);
             }
         });
 
@@ -619,13 +655,22 @@ class Enemy {
     }
     takeDamage(dmg, ignoreS = false) {
         if (!ignoreS && this.shield > 0) { this.shield--; return; }
-        this.hp -= dmg; if (this.hp <= 0) this.dead = true;
+        this.hp -= dmg;
+        this.hitFlash = 100; // Flash red for 100ms
+        if (this.hp <= 0) this.dead = true;
     }
     slow(p, d) { this.tempSpeed = this.speed * (1 - p); this.slowT = d; }
     burn(d) { this.burnT = 4; this.burnD = d; }
     poison(d) { this.poisonT = 5; this.poisonD = d; }
     draw(ctx) {
         ctx.save(); ctx.translate(this.x, this.y);
+
+        // Damage Flash Effect
+        if (this.hitFlash > 0) {
+            this.hitFlash -= 16; // Approx delta
+            ctx.filter = `brightness(2) sepia(1) hue-rotate(-50deg) saturate(5)`;
+        }
+
         const bob = Math.sin(Date.now() / 150) * 2;
         const fBob = Math.sin(Date.now() / 80) * 4;
         switch (this.type) {
@@ -940,34 +985,25 @@ class Projectile {
     }
     draw(ctx) {
         ctx.save(); ctx.translate(this.x, this.y);
-        ctx.shadowBlur = 5;
+        // Reduced shadow usage for performance
         switch (this.type) {
             case 'cannon':
-                // Obuseiro Explosivo
                 ctx.fillStyle = '#424242'; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = '#ffeb3b'; ctx.fillRect(-2, -2, 4, 4); // Spikes/glow
+                ctx.fillStyle = '#ffeb3b'; ctx.fillRect(-2, -2, 4, 4);
                 break;
             case 'ice':
-                // Lança de Gelo
-                ctx.fillStyle = '#bbdefb'; ctx.shadowColor = '#00bfff';
-                ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(-4, -4); ctx.lineTo(-2, 0); ctx.lineTo(-4, 4); ctx.closePath(); ctx.fill();
+                ctx.fillStyle = '#bbdefb'; ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(-4, -4); ctx.lineTo(-2, 0); ctx.lineTo(-4, 4); ctx.closePath(); ctx.fill();
                 break;
             case 'fire':
-                // Meteoro Incandescente
-                ctx.fillStyle = '#ff4500'; ctx.shadowColor = '#ff4500'; ctx.shadowBlur = 10;
-                ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#ff4500'; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill();
                 ctx.fillStyle = '#424242'; ctx.beginPath(); ctx.arc(-2, -2, 3, 0, Math.PI * 2); ctx.fill();
                 break;
             case 'poison':
-                // Bomba de Bio-Risco (Flask)
-                ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.5;
-                ctx.fillRect(-3, -6, 6, 12); ctx.globalAlpha = 1;
+                ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.5; ctx.fillRect(-3, -6, 6, 12); ctx.globalAlpha = 1;
                 ctx.fillStyle = '#4caf50'; ctx.fillRect(-2, -2, 4, 6);
                 break;
             case 'magic':
-                // Estrela Cadente
-                ctx.fillStyle = '#ea80fc'; ctx.shadowColor = '#ea80fc'; ctx.shadowBlur = 15;
-                ctx.beginPath(); ctx.arc(0, 0, 7, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#ea80fc'; ctx.beginPath(); ctx.arc(0, 0, 7, 0, Math.PI * 2); ctx.fill();
                 ctx.fillStyle = '#fff'; ctx.fillRect(-2, -2, 4, 4);
                 break;
             default:
