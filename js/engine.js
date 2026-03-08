@@ -430,6 +430,7 @@ class Game {
             if (p.update) p.update(delta);
             else if (p.life !== undefined) {
                 p.life -= delta;
+                if (p.type === 'lightning_arc') p.life -= 10; // Extra fast for lightning
                 if (p.type === 'puddle') {
                     this.enemies.forEach(e => { if (Math.sqrt((e.x - p.x) ** 2 + (e.y - p.y) ** 2) < 30) e.takeDamage(p.dmg * (delta / 1000), true); });
                 }
@@ -511,18 +512,18 @@ class Game {
                 this.ctx.strokeStyle = '#fff'; this.ctx.lineWidth = 2;
                 this.ctx.beginPath(); this.ctx.moveTo(p.x, p.y);
                 this.ctx.lineTo(p.tx, p.ty); this.ctx.stroke();
-                p.life -= 20;
             } else if (p.type === 'mana_beam') {
-                this.ctx.strokeStyle = '#da70d6'; this.ctx.lineWidth = 2; ctx.globalAlpha = p.life / 100;
+                this.ctx.strokeStyle = '#da70d6'; this.ctx.lineWidth = 2;
+                this.ctx.globalAlpha = Math.min(1.0, p.life / 100);
                 this.ctx.beginPath(); this.ctx.moveTo(p.x, p.y); this.ctx.lineTo(p.tx, p.ty); this.ctx.stroke();
-                ctx.globalAlpha = 1.0; p.life -= 10;
+                this.ctx.globalAlpha = 1.0;
             } else if (p.type === 'puddle') {
                 this.ctx.fillStyle = p.color; this.ctx.globalAlpha = 0.5;
                 this.ctx.beginPath(); this.ctx.arc(p.x, p.y, 20, 0, Math.PI * 2); this.ctx.fill();
                 this.ctx.globalAlpha = 1.0;
             } else if (typeof p.draw === 'function') p.draw(this.ctx);
             else {
-                this.ctx.globalAlpha = p.life / 100;
+                this.ctx.globalAlpha = Math.min(1.0, p.life / 100);
                 this.ctx.fillStyle = p.color;
                 this.ctx.fillRect(p.x, p.y, 4, 4);
                 this.ctx.globalAlpha = 1.0;
@@ -547,7 +548,7 @@ class Game {
             } else if (v.type === 'ice_prison') {
                 this.ctx.fillStyle = 'rgba(0, 255, 255, 0.4)';
                 this.ctx.fillRect(v.x - 15, v.y - 15, 30, 30);
-                this.ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+                this.ctx.strokeStyle = '#fff'; this.ctx.lineWidth = 2;
                 this.ctx.strokeRect(v.x - 15, v.y - 15, 30, 30);
             } else if (v.type === 'gas_cloud') {
                 this.ctx.fillStyle = 'rgba(50, 205, 50, 0.3)';
