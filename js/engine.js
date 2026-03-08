@@ -17,8 +17,6 @@ class Game {
         this.paused = true;
         this.gameState = 'title'; // 'title', 'playing', 'gameover'
         this.vfxLayer = [];
-        this.decorations = [];
-        this.manaFireflies = [];
         this.screenShake = 0;
         this.screenColorOverlay = null;
         this.overlayTimer = 0;
@@ -155,19 +153,6 @@ class Game {
             ctx.globalAlpha = 1.0;
         });
 
-        // 3. Mana Oak Sprite
-        this.manaOakSprite = generatePX(60, 80, (ctx) => {
-            ctx.fillStyle = '#212121'; ctx.fillRect(25, 40, 10, 30);
-            const g = ctx.createRadialGradient(30, 30, 0, 30, 30, 35);
-            g.addColorStop(0, '#ea80fc'); g.addColorStop(1, '#4a148c');
-            ctx.fillStyle = g; ctx.beginPath(); ctx.arc(30, 30, 30, 0, Math.PI * 2); ctx.fill();
-        });
-
-        // 4. Crystal Sprite
-        this.crystalSprite = generatePX(20, 30, (ctx) => {
-            ctx.fillStyle = '#00e5ff'; ctx.beginPath(); ctx.moveTo(10, 0); ctx.lineTo(20, 15); ctx.lineTo(10, 30); ctx.lineTo(0, 15); ctx.fill();
-        });
-
         const groundPat = bctx.createPattern(emeraldTex, 'repeat');
         bctx.fillStyle = groundPat; bctx.fillRect(0, 0, 800, 600);
 
@@ -179,9 +164,6 @@ class Game {
 
         bctx.strokeStyle = pathPat; bctx.lineWidth = 44;
         bctx.stroke();
-
-        this.decorations = [];
-        this.manaFireflies = [];
     }
 
     updateHUD(force = false) {
@@ -435,21 +417,24 @@ class Game {
         if (this.overlayTimer > 0) this.overlayTimer -= delta;
         else this.screenColorOverlay = null;
 
-        // Removed fireflies and vfx update logic for basic elements
-        this.vfxLayer.forEach((v, i) => {
-            if (v.type === 'arrow') { v.y += v.speed; if (v.y > 700) this.vfxLayer.splice(i, 1); }
-            else if (v.type === 'explosion') { v.radius += 10; v.life -= 2; if (v.life <= 0) this.vfxLayer.splice(i, 1); }
-            else if (v.type === 'lightning_strike') { v.life -= 10; if (v.life <= 0) this.vfxLayer.splice(i, 1); }
-            else if (v.type === 'orbital') { v.life -= 2; if (v.life <= 0) this.vfxLayer.splice(i, 1); }
-            else if (v.type === 'ice_prison') { v.life -= 16; if (v.life <= 0) this.vfxLayer.splice(i, 1); }
-            else if (v.type === 'gas_cloud') { v.life -= 16; if (v.life <= 0) this.vfxLayer.splice(i, 1); }
+        this.vfxLayer = this.vfxLayer.filter(v => {
+            if (v.type === 'arrow') { v.y += v.speed; return v.y < 700; }
+            if (v.type === 'explosion') { v.radius += 10; v.life -= 2; return v.life > 0; }
+            if (v.type === 'lightning_strike') { v.life -= 10; return v.life > 0; }
+            if (v.type === 'orbital') { v.life -= 2; return v.life > 0; }
+            if (v.type === 'ice_prison' || v.type === 'gas_cloud') { v.life -= 16; return v.life > 0; }
+            return v.life > 0;
         });
 
-        this.particles.forEach((p, i) => {
-            if (p.type === 'puddle') {
+        this.particles = this.particles.filter(p => {
+            if (p.update) p.update(delta);
+            else if (p.life !== undefined) {
                 p.life -= delta;
-                this.enemies.forEach(e => { if (Math.sqrt((e.x - p.x) ** 2 + (e.y - p.y) ** 2) < 30) e.takeDamage(p.dmg * (delta / 1000), true); });
+                if (p.type === 'puddle') {
+                    this.enemies.forEach(e => { if (Math.sqrt((e.x - p.x) ** 2 + (e.y - p.y) ** 2) < 30) e.takeDamage(p.dmg * (delta / 1000), true); });
+                }
             }
+            return p.life > 0;
         });
 
         if (this.enemies.length === 0 && this.enemiesSpawned >= this.enemiesInWave) {
@@ -492,12 +477,8 @@ class Game {
         this.enemies = this.enemies.filter(e => !e.dead);
 
         this.towers.forEach(t => t.update(delta));
-
         this.projectiles.forEach(p => p.update(delta));
         this.projectiles = this.projectiles.filter(p => !p.dead);
-
-        this.particles.forEach(p => p.update(delta));
-        this.particles = this.particles.filter(p => p.life > 0);
     }
 
     draw() {
@@ -505,8 +486,6 @@ class Game {
         this.ctx.save();
         if (this.screenShake > 0) this.ctx.translate((Math.random() - 0.5) * this.screenShake, (Math.random() - 0.5) * this.screenShake);
         this.ctx.drawImage(this.bgCanvas, 0, 0);
-
-        // Removed decorations and mana fireflies drawing
 
         this.towers.forEach(t => {
             if (t.type === 'ice' || t.type === 'magic') {
