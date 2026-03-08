@@ -69,12 +69,12 @@ class Game {
 
         this.towerLimits = { cannon: 0, fire: 0, ice: 0, lightning: 0, magic: 0, poison: 0 };
         this.towerData = {
-            cannon: { cost: 100, name: "Canhão Básico", icon: "🏹", color: "#8a2be2", range: 150 },
-            fire: { cost: 200, name: "Torre de Fogo", icon: "🔥", color: "#ff4500", range: 120 },
-            ice: { cost: 150, name: "Torre de Gelo", icon: "❄️", color: "#00bfff", range: 130 },
-            lightning: { cost: 300, name: "Torre de Raio", icon: "⚡", color: "#ffff00", range: 160 },
-            magic: { cost: 400, name: "Torre Mágica", icon: "✨", color: "#da70d6", range: 160 },
-            poison: { cost: 250, name: "Torre Veneno", icon: "🧪", color: "#32cd32", range: 140 }
+            cannon: { cost: 100, name: "Canhão de Cerco", icon: "🏹", color: "#8a2be2", range: 150, baseDmg: 60 },
+            fire: { cost: 200, name: "Forja de Vulcão", icon: "🔥", color: "#ff4500", range: 120, baseDmg: 42 },
+            ice: { cost: 150, name: "Pináculo de Gelo", icon: "❄️", color: "#00bfff", range: 130, baseDmg: 24 },
+            lightning: { cost: 300, name: "Bobina de Raio", icon: "⚡", color: "#ffff00", range: 180, baseDmg: 28 },
+            magic: { cost: 400, name: "Santuário Arcano", icon: "✨", color: "#da70d6", range: 160, baseDmg: 37 },
+            poison: { cost: 250, name: "Lab. de Peste", icon: "🧪", color: "#32cd32", range: 140, baseDmg: 16 }
         };
 
         this.init();
@@ -440,6 +440,16 @@ class Game {
             if (v.type === 'arrow') { v.y += v.speed; if (v.y > 700) this.vfxLayer.splice(i, 1); }
             else if (v.type === 'explosion') { v.radius += 10; v.life -= 2; if (v.life <= 0) this.vfxLayer.splice(i, 1); }
             else if (v.type === 'lightning_strike') { v.life -= 10; if (v.life <= 0) this.vfxLayer.splice(i, 1); }
+            else if (v.type === 'orbital') { v.life -= 2; if (v.life <= 0) this.vfxLayer.splice(i, 1); }
+            else if (v.type === 'ice_prison') { v.life -= 16; if (v.life <= 0) this.vfxLayer.splice(i, 1); }
+            else if (v.type === 'gas_cloud') { v.life -= 16; if (v.life <= 0) this.vfxLayer.splice(i, 1); }
+        });
+
+        this.particles.forEach((p, i) => {
+            if (p.type === 'puddle') {
+                p.life -= delta;
+                this.enemies.forEach(e => { if (Math.sqrt((e.x - p.x) ** 2 + (e.y - p.y) ** 2) < 30) e.takeDamage(p.dmg * (delta / 1000), true); });
+            }
         });
 
         if (this.enemies.length === 0 && this.enemiesSpawned >= this.enemiesInWave) {
@@ -517,8 +527,21 @@ class Game {
         this.enemies.forEach(e => e.draw(this.ctx));
         this.towers.forEach(t => t.draw(this.ctx));
         this.projectiles.forEach(p => p.draw(this.ctx));
-        this.particles.forEach(p => { // Particles can be generic or custom draw
-            if (typeof p.draw === 'function') p.draw(this.ctx);
+        this.particles.forEach(p => {
+            if (p.type === 'lightning_arc') {
+                this.ctx.strokeStyle = '#fff'; this.ctx.lineWidth = 2;
+                this.ctx.beginPath(); this.ctx.moveTo(p.x, p.y);
+                this.ctx.lineTo(p.tx, p.ty); this.ctx.stroke();
+                p.life -= 20;
+            } else if (p.type === 'mana_beam') {
+                this.ctx.strokeStyle = '#da70d6'; this.ctx.lineWidth = 2; ctx.globalAlpha = p.life / 100;
+                this.ctx.beginPath(); this.ctx.moveTo(p.x, p.y); this.ctx.lineTo(p.tx, p.ty); this.ctx.stroke();
+                ctx.globalAlpha = 1.0; p.life -= 10;
+            } else if (p.type === 'puddle') {
+                this.ctx.fillStyle = p.color; this.ctx.globalAlpha = 0.5;
+                this.ctx.beginPath(); this.ctx.arc(p.x, p.y, 20, 0, Math.PI * 2); this.ctx.fill();
+                this.ctx.globalAlpha = 1.0;
+            } else if (typeof p.draw === 'function') p.draw(this.ctx);
             else {
                 this.ctx.globalAlpha = p.life / 100;
                 this.ctx.fillStyle = p.color;
@@ -528,15 +551,28 @@ class Game {
         });
 
         this.vfxLayer.forEach(v => {
-            if (v.type === 'arrow') { this.ctx.fillStyle = '#eee'; this.ctx.fillRect(v.x, v.y, 2, 20); } // Adjusted arrow color/size
+            if (v.type === 'arrow') { this.ctx.fillStyle = '#eee'; this.ctx.fillRect(v.x, v.y, 2, 20); }
             else if (v.type === 'explosion') {
                 const g = this.ctx.createRadialGradient(v.x, v.y, 0, v.x, v.y, v.radius);
-                g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.2, 'rgba(255,200,0,0.8)'); g.addColorStop(1, 'rgba(255,0,0,0)'); // More fiery gradient
+                g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.2, 'rgba(255,200,0,0.8)'); g.addColorStop(1, 'rgba(255,0,0,0)');
                 this.ctx.fillStyle = g; this.ctx.beginPath(); this.ctx.arc(v.x, v.y, v.radius, 0, Math.PI * 2); this.ctx.fill();
             } else if (v.type === 'lightning_strike') {
-                this.ctx.strokeStyle = '#fff'; this.ctx.lineWidth = 4; this.ctx.beginPath(); this.ctx.moveTo(v.x, 0); // Thicker lightning
+                this.ctx.strokeStyle = '#fff'; this.ctx.lineWidth = 4; this.ctx.beginPath(); this.ctx.moveTo(v.x, 0);
                 let cx = v.x; for (let y = 0; y < 600; y += 50) { cx += (Math.random() - 0.5) * 40; this.ctx.lineTo(cx, y); }
                 this.ctx.stroke();
+            } else if (v.type === 'orbital') {
+                this.ctx.fillStyle = 'rgba(255, 255, 255, ' + (v.life / 100) + ')';
+                this.ctx.beginPath(); this.ctx.arc(v.x, v.y, 100 - v.life, 0, Math.PI * 2); this.ctx.stroke();
+                this.ctx.fillStyle = 'rgba(255, 215, 0, 0.3)';
+                this.ctx.fill();
+            } else if (v.type === 'ice_prison') {
+                this.ctx.fillStyle = 'rgba(0, 255, 255, 0.4)';
+                this.ctx.fillRect(v.x - 15, v.y - 15, 30, 30);
+                this.ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+                this.ctx.strokeRect(v.x - 15, v.y - 15, 30, 30);
+            } else if (v.type === 'gas_cloud') {
+                this.ctx.fillStyle = 'rgba(50, 205, 50, 0.3)';
+                this.ctx.beginPath(); this.ctx.arc(v.x, v.y, 30, 0, Math.PI * 2); this.ctx.fill();
             }
         });
 
@@ -615,10 +651,16 @@ class Enemy {
         this.speed = (1.2 + Math.random() * 0.5) * spM; this.tempSpeed = this.speed;
         this.bounty = Math.floor(10 * Math.pow(1.05, wave - 1));
         this.slowT = 0; this.burnT = 0; this.burnD = 0; this.poisonT = 0; this.poisonD = 0;
+        this.armorReduction = 1.0; // 1.0 = normal, 0.75 = 25% reduction (more damage)
+        this.damageTakenMult = 1.0; // bonus damage from all sources
+        this.stunT = 0;
         this.lastT = 0; this.dead = false; this.reachedEnd = false;
+        this.viralMarker = false; // For Level 7 Poison
+        this.icePrisonMarker = 0; // For Level 7 Ice
     }
     update(delta) {
-        if (this.slowT > 0) { this.slowT -= delta; if (this.slowT <= 0) this.tempSpeed = this.speed; }
+        if (this.stunT > 0) { this.stunT -= delta; return; }
+        if (this.slowT > 0) { this.slowT -= delta; if (this.slowT <= 0) { this.tempSpeed = this.speed; this.damageTakenMult = 1.0; } }
         this.lastT += delta;
         if (this.lastT >= 1000) {
             if (this.burnT > 0) { this.takeDamage(this.burnD, true); this.burnT--; }
@@ -632,22 +674,38 @@ class Enemy {
         if (d < md) { this.x = target.x; this.y = target.y; this.pathIndex++; }
         else { this.x += (dx / d) * md; this.y += (dy / d) * md; }
 
-        // Simplified Path Dust
-        if (Math.random() > 0.95 && this.game.isNearPath(this.x, this.y, 20)) {
-            this.game.particles.push(new Particle(this.x, this.y, '#9c7e6e', true));
-        }
-
-        if (this.hp <= 0) this.dead = true;
+        if (this.hp <= 0) this.die();
     }
     takeDamage(dmg, ignoreS = false) {
         if (!ignoreS && this.shield > 0) { this.shield--; return; }
-        this.hp -= dmg;
-        this.hitFlash = 100; // Flash red for 100ms
-        if (this.hp <= 0) this.dead = true;
+        const finalDmg = dmg * this.damageTakenMult * (1 / this.armorReduction);
+        this.hp -= finalDmg;
+        this.hitFlash = 100;
+        if (this.hp <= 0) this.die();
     }
-    slow(p, d) { this.tempSpeed = this.speed * (1 - p); this.slowT = d; }
+    die() {
+        if (this.dead) return;
+        this.dead = true;
+        if (this.viralMarker && !this.reachedEnd) {
+            // Contágio Viral Level 7
+            this.game.createMagicEffect('#4caf50', 15, this.x, this.y);
+            this.game.enemies.forEach(e => {
+                const d = Math.sqrt((e.x - this.x) ** 2 + (e.y - this.y) ** 2);
+                if (d < 70 && e !== this) {
+                    e.takeDamage(100);
+                    e.poison(10); // Spreading pest
+                }
+            });
+        }
+    }
+    stun(duration) { this.stunT = Math.max(this.stunT, duration); }
+    slow(p, d, dmgMult = 1.0) { this.tempSpeed = this.speed * (1 - p); this.slowT = d; this.damageTakenMult = Math.max(this.damageTakenMult, dmgMult); }
     burn(d) { this.burnT = 4; this.burnD = d; }
     poison(d) { this.poisonT = 5; this.poisonD = d; }
+    reduceArmor(reduction, duration) {
+        this.armorReduction = 1 - reduction;
+        setTimeout(() => { if (!this.dead) this.armorReduction = 1.0; }, duration);
+    }
     draw(ctx) {
         ctx.save(); ctx.translate(this.x, this.y);
 
@@ -700,64 +758,96 @@ class Tower {
     constructor(x, y, game, type) {
         this.x = x; this.y = y; this.game = game; this.type = type; this.level = 1; this.timer = 0;
         this.muzzleFlash = 0;
+        this.internalTimer = 0; // Cooldown for active abilities
+        this.manaFocusTimer = 0; // Sanctuary Arcano
+        this.speedBonus = 0; // Bobina de Raio
+        this.iceHitCount = 0; // Pináculo de Gelo
+        this.currentTarget = null;
         const d = game.towerData[type];
+        this.range = d.range; this.damage = d.baseDmg;
         switch (type) {
-            case 'cannon': this.range = 150; this.damage = 10; this.atkS = 1000; break;
-            case 'fire': this.range = 120; this.damage = 5; this.atkS = 1200; break;
-            case 'ice': this.range = 130; this.damage = 3; this.atkS = 1500; break;
-            case 'lightning': this.range = 200; this.damage = 8; this.atkS = 600; break;
-            case 'magic': this.range = 160; this.damage = 15; this.atkS = 2000; break;
-            case 'poison': this.range = 140; this.damage = 4; this.atkS = 1300; break;
+            case 'cannon': this.atkS = 1000; break;
+            case 'fire': this.atkS = 1200; break;
+            case 'ice': this.atkS = 1500; break;
+            case 'lightning': this.atkS = 600; break;
+            case 'magic': this.atkS = 2000; break;
+            case 'poison': this.atkS = 1300; break;
         }
     }
     getUpgradeCost() { return Math.floor(this.game.towerData[this.type].cost * Math.pow(1.8, this.level)); }
-    upgrade() { this.level++; this.damage *= 1.4; this.range += 15; this.atkS *= 0.9; }
+    upgrade() {
+        this.level++;
+        this.damage *= 1.4;
+        this.range += 15;
+        this.atkS *= 0.9;
+    }
     update(delta) {
+        if (this.internalTimer > 0) this.internalTimer -= delta;
         this.timer += delta;
-        if (this.timer >= this.atkS) {
-            const t = this.game.enemies.find(e => Math.sqrt((e.x - this.x) ** 2 + (e.y - this.y) ** 2) <= this.range);
-            if (t) {
-                if (this.type === 'lightning') {
-                    // Instant hit for tesla with paralysis
-                    const dmg = this.damage;
-                    const target = t;
-                    target.takeDamage(dmg);
-                    target.slow(1.0, 333); // Total paralysis for 1/3 second
 
-                    // Add Lightning Arc Particle Effect
-                    this.game.particles.push({
-                        draw: (ctx) => {
-                            ctx.strokeStyle = '#fff';
-                            ctx.lineWidth = 2;
-                            ctx.beginPath();
-                            ctx.moveTo(this.x, this.y - 28);
-                            // Jagged line
-                            let curX = this.x, curY = this.y - 28;
-                            for (let i = 0; i < 3; i++) {
-                                curX += (target.x - curX) * 0.3 + (Math.random() - 0.5) * 30;
-                                curY += (target.y - curY) * 0.3 + (Math.random() - 0.5) * 30;
-                                ctx.lineTo(curX, curY);
+        // Reset counters if target lost/changed
+        const bestTarget = this.game.enemies.find(e => Math.sqrt((e.x - this.x) ** 2 + (e.y - this.y) ** 2) <= this.range);
+        if (bestTarget !== this.currentTarget) {
+            this.currentTarget = bestTarget;
+            this.manaFocusTimer = 0;
+            this.speedBonus = 0;
+            this.iceHitCount = 0;
+        }
+
+        if (this.timer >= this.atkS * (1 - this.speedBonus)) {
+            if (this.currentTarget) {
+                // Special Attack Level 7 logic
+                if (this.level >= 7 && this.internalTimer <= 0) {
+                    if (this.type === 'cannon') {
+                        // Barragem Orbital
+                        this.game.announce("BARRAGEM ORBITAL", "Stun em área!");
+                        this.game.enemies.forEach(e => {
+                            const d = Math.sqrt((e.x - this.currentTarget.x) ** 2 + (e.y - this.currentTarget.y) ** 2);
+                            if (d < 200) e.stun(2000);
+                        });
+                        this.game.vfxLayer.push({ type: 'orbital', x: this.currentTarget.x, y: this.currentTarget.y, life: 100 });
+                        this.internalTimer = 12000;
+                    } else if (this.type === 'fire') {
+                        // Erupção Catastrófica (A cada 10s automático, mas vamos vincular ao ataque se pronto)
+                        this.game.announce("ERUPÇÃO", "Dano em 360°!");
+                        this.game.enemies.forEach(e => {
+                            const d = Math.sqrt((e.x - this.x) ** 2 + (e.y - this.y) ** 2);
+                            if (d < 150) { e.takeDamage(this.damage * 0.75); e.burn(10); }
+                        });
+                        this.game.createMagicEffect('#ff4500', 50, this.x, this.y);
+                        this.internalTimer = 10000;
+                    } else if (this.type === 'magic') {
+                        // Buraco Negro
+                        this.game.announce("BURACO NEGRO", "Efeito Gravitacional!");
+                        this.game.enemies.forEach(e => {
+                            const d = Math.sqrt((e.x - this.x) ** 2 + (e.y - this.y) ** 2);
+                            if (d < 180) {
+                                e.stun(1500);
+                                e.x = (e.x + this.x) / 2; e.y = (e.y + this.y) / 2; // Pull center
                             }
-                            ctx.lineTo(target.x, target.y);
-                            ctx.stroke();
-                            // Glow
-                            ctx.strokeStyle = '#ffff00';
-                            ctx.lineWidth = 4;
-                            ctx.globalAlpha = 0.5;
-                            ctx.stroke();
-                            ctx.globalAlpha = 1.0;
-                        },
-                        update: function () { this.life -= 10; },
-                        life: 100
-                    });
-
-                    this.muzzleFlash = 100;
-                    this.timer = 0;
-                } else {
-                    this.game.projectiles.push(new Projectile(this.x, this.y, t, this.damage, this.type, this.game));
-                    this.muzzleFlash = 100; // Trigger flash
-                    this.timer = 0;
+                        });
+                        this.internalTimer = 15000;
+                    }
                 }
+
+                // Normal Attack with Level 5 specific logic
+                let dmg = this.damage;
+                if (this.type === 'magic' && this.level >= 5) {
+                    this.manaFocusTimer += this.timer;
+                    const bonus = Math.min(0.3, Math.floor(this.manaFocusTimer / 1500) * 0.1);
+                    dmg *= (1 + bonus);
+                    if (bonus > 0) this.game.particles.push({ type: 'mana_beam', x: this.x, y: this.y, tx: this.currentTarget.x, ty: this.currentTarget.y, life: 100 });
+                }
+
+                if (this.type === 'lightning') {
+                    this.game.projectiles.push(new Projectile(this.x, this.y, this.currentTarget, dmg, this.type, this.game, this.level));
+                    if (this.level >= 7) this.speedBonus = Math.min(0.5, this.speedBonus + 0.05);
+                } else {
+                    this.game.projectiles.push(new Projectile(this.x, this.y, this.currentTarget, dmg, this.type, this.game, this.level));
+                }
+
+                this.muzzleFlash = 100;
+                this.timer = 0;
             }
         }
         if (this.muzzleFlash > 0) this.muzzleFlash -= delta;
@@ -930,43 +1020,109 @@ class Tower {
                 }
                 break;
         }
+        if (level >= 5) {
+            // Aura de Especialização
+            ctx.fillStyle = this.game.towerData[this.type].color;
+            ctx.globalAlpha = 0.2;
+            ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI * 2); ctx.fill();
+            ctx.globalAlpha = 1.0;
+        }
+
         ctx.restore();
         ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Outfit'; ctx.textAlign = 'center'; ctx.fillText(`LVL ${this.level}`, this.x, this.y + 28);
+
+        // Nível 7: Alcance Dourado e Barra de Cooldown
+        if (this.game.selectedActiveTower === this) {
+            if (this.level >= 7) {
+                ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.range, 0, Math.PI * 2); ctx.stroke();
+            }
+        }
+        if (this.level >= 7 && this.internalTimer > 0) {
+            const barW = 30, barH = 4;
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(this.x - barW / 2, this.y - 35, barW, barH);
+            ctx.fillStyle = '#ffd700';
+            const progress = 1 - (this.internalTimer / (this.type === 'cannon' ? 12000 : (this.type === 'magic' ? 15000 : 10000)));
+            ctx.fillRect(this.x - barW / 2, this.y - 35, barW * progress, barH);
+        }
     }
 }
 
 class Projectile {
-    constructor(x, y, target, damage, type, game) {
-        this.x = x; this.y = y; this.target = target; this.damage = damage; this.type = type; this.game = game;
-        this.speed = 7; this.dead = false; this.piercing = (type === 'magic'); this.hitE = new Set();
+    constructor(x, y, target, damage, type, game, towerLevel = 1) {
+        this.x = x; this.y = y; this.startX = x; this.startY = y;
+        this.target = target; this.damage = damage; this.type = type; this.game = game;
+        this.towerLevel = towerLevel;
+        this.speed = 7; this.dead = false; this.piercing = (type === 'magic');
+        this.hitEnemies = new Set();
     }
     update(delta) {
-        // Trail particles
-        // Reduced trail particles for performance
-        if (Math.random() > 0.8) {
-            let color = '#fff';
-            if (this.type === 'fire') color = '#ff4500';
-            if (this.type === 'ice') color = '#e3f2fd';
-            this.game.particles.push(new Particle(this.x, this.y, color));
-        }
+        if (Math.random() > 0.8) this.game.particles.push(new Particle(this.x, this.y, this.game.towerData[this.type].color));
 
         if (this.piercing) {
             if (!this.vx) { const dx = this.target.x - this.x, dy = this.target.y - this.y, d = Math.sqrt(dx * dx + dy * dy); this.vx = (dx / d) * this.speed; this.vy = (dy / d) * this.speed; }
             this.x += this.vx; this.y += this.vy;
-            this.game.enemies.forEach(e => { if (!this.hitE.has(e)) { if (Math.sqrt((e.x - this.x) ** 2 + (e.y - this.y) ** 2) < e.radius + 5) { this.apply(e); this.hitE.add(e); } } });
+            this.game.enemies.forEach(e => {
+                if (!this.hitEnemies.has(e) && Math.sqrt((e.x - this.x) ** 2 + (e.y - this.y) ** 2) < e.radius + 5) {
+                    this.applyEffects(e); this.hitEnemies.add(e);
+                }
+            });
             if (this.x < 0 || this.x > 800 || this.y < 0 || this.y > 600) this.dead = true;
         } else {
             if (!this.target || this.target.dead) { this.dead = true; return; }
             const dx = this.target.x - this.x, dy = this.target.y - this.y, d = Math.sqrt(dx * dx + dy * dy);
-            if (d < 10) { this.apply(this.target); this.dead = true; }
+            if (d < 10) { this.applyEffects(this.target); this.dead = true; }
             else { this.x += (dx / d) * this.speed; this.y += (dy / d) * this.speed; }
         }
     }
-    apply(t) {
+    applyEffects(t) {
         t.takeDamage(this.damage);
-        if (this.type === 'fire') t.burn(this.damage * 0.5);
-        if (this.type === 'ice') t.slow(0.4, 5000);
-        if (this.type === 'poison') t.poison(this.damage * 0.3);
+        if (this.type === 'fire') {
+            t.burn(this.damage * 0.5);
+            if (this.towerLevel >= 5) this.game.particles.push({ type: 'puddle', x: t.x, y: t.y, color: '#ff4500', life: 3000, dmg: this.damage * 0.2 });
+        }
+        if (this.type === 'ice') {
+            t.slow(0.4, 5000, this.towerLevel >= 5 ? 1.15 : 1.0);
+            if (this.towerLevel >= 7) {
+                const tower = this.game.towers.find(tw => tw.x === this.startX && tw.y === this.startY); // Approximation
+                t.icePrisonMarker++;
+                if (t.icePrisonMarker >= 5) { t.stun(3000); t.icePrisonMarker = 0; this.game.vfxLayer.push({ type: 'ice_prison', x: t.x, y: t.y, life: 3000 }); }
+            }
+        }
+        if (this.type === 'poison') {
+            t.poison(this.damage * 0.3);
+            if (this.towerLevel >= 5) { t.reduceArmor(0.25, 4000); this.game.vfxLayer.push({ type: 'gas_cloud', x: t.x, y: t.y, life: 4000 }); }
+            if (this.towerLevel >= 7) t.viralMarker = true;
+        }
+        if (this.type === 'cannon' && this.towerLevel >= 5) {
+            // Fragmentação
+            for (let i = 0; i < 3; i++) {
+                const shard = new Projectile(this.x, this.y, null, this.damage * 0.35, 'cannon', this.game, 1);
+                shard.vx = (Math.random() - 0.5) * 10; shard.vy = (Math.random() - 0.5) * 10;
+                shard.piercing = true; // Make shards linear
+                this.game.projectiles.push(shard);
+            }
+        }
+        if (this.type === 'lightning') {
+            t.slow(1.0, 333);
+            if (this.towerLevel >= 5) {
+                // Cadeia de Raios
+                let jumps = 2;
+                let lastT = t;
+                const hits = new Set([t]);
+                const chain = () => {
+                    if (jumps <= 0) return;
+                    const next = this.game.enemies.find(e => !hits.has(e) && Math.sqrt((e.x - lastT.x) ** 2 + (e.y - lastT.y) ** 2) < 100);
+                    if (next) {
+                        next.takeDamage(this.damage * 0.7);
+                        this.game.particles.push({ type: 'lightning_arc', x: lastT.x, y: lastT.y, tx: next.x, ty: next.y, life: 100 });
+                        lastT = next; hits.add(next); jumps--; chain();
+                    }
+                };
+                chain();
+            }
+        }
     }
     draw(ctx) {
         ctx.save(); ctx.translate(this.x, this.y);
