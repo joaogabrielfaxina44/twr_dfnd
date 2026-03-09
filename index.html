@@ -184,12 +184,8 @@
         <canvas id="game-canvas" width="800" height="600"></canvas>
 
         <!-- Painel de UI lateral -->
-        <!-- Painel de UI lateral -->
         <aside id="ui-panel">
-            <div class="ui-header">
-                <h1 style="font-size: 1.2rem; margin-bottom: 10px; color: var(--accent);">ULTRA DEFENDERS</h1>
-                <button id="pause-btn" class="icon-btn" onclick="game.togglePause()">⏸️</button>
-            </div>
+            <h1 style="font-size: 1.2rem; margin-bottom: 10px; color: var(--accent);">ULTRA DEFENDERS</h1>
 
             <section class="hud-item" id="hud-gold">
                 <div>
@@ -201,10 +197,8 @@
 
             <section class="hud-item" id="hud-hp">
                 <div>
-                    <span class="hud-label">Integridade do Vale</span><br>
-                    <div class="hp-bar-container">
-                        <div id="hp-bar-fill"></div>
-                    </div>
+                    <span class="hud-label">Vida do Castelo</span><br>
+                    <span class="hud-value" id="hp-value" style="color: #ff4d4d;">100</span>
                 </div>
                 <div style="color: #ff4d4d; font-size: 1.5rem;">🏰</div>
             </section>
@@ -296,8 +290,6 @@
             <div class="wave-info" id="wave-display">
                 <span class="hud-label" style="display: block;">ONDA ATUAL</span>
                 <span id="wave-number">1</span>
-                <button id="skip-wave-btn" class="gold-btn" onclick="game.skipWave()" style="display: none;">PULAR (+20
-                    🪙)</button>
             </div>
         </aside>
 
@@ -305,14 +297,6 @@
         <div id="announcement">
             <h2 class="announcement-text" id="announcement-main">PRÓXIMA ONDA</h2>
             <p class="announcement-sub" id="announcement-sub">+150 Ouro de Recompensa!</p>
-        </div>
-
-        <!-- Boss Health Bar -->
-        <div id="boss-hud" class="hidden">
-            <div class="boss-title" id="boss-name">O URSO DE ÂMBAR</div>
-            <div class="boss-hp-container">
-                <div id="boss-hp-fill"></div>
-            </div>
         </div>
 
         <!-- Menu de Evolução Premium -->
@@ -325,19 +309,6 @@
                 </div>
                 <div class="evo-xp-bar">
                     <div id="evo-xp-fill" style="width: 20%;"></div>
-                </div>
-            </div>
-
-            <div class="evo-targeting">
-                <span class="hud-label">FOCO DO ALVO</span>
-                <div class="targeting-grid">
-                    <button class="target-btn active" id="target-first"
-                        onclick="game.setTargetMode('first')">PRIMEIRO</button>
-                    <button class="target-btn" id="target-last" onclick="game.setTargetMode('last')">ÚLTIMO</button>
-                    <button class="target-btn" id="target-strongest"
-                        onclick="game.setTargetMode('strongest')">FORTE</button>
-                    <button class="target-btn" id="target-closest"
-                        onclick="game.setTargetMode('closest')">PERTO</button>
                 </div>
             </div>
 
@@ -374,46 +345,6 @@
             </div>
 
             <button class="close-evo" onclick="game.deselectTower()">×</button>
-        </div>
-
-        <!-- Overlay de Talentos -->
-        <div id="talent-menu" class="overlay hidden">
-            <div class="talent-altar">
-                <h2>CRISTAL DE ANCESTRAL</h2>
-                <p>Escolha uma bênção para fortalecer o Vale</p>
-                <div class="talent-options" id="talent-options">
-                    <!-- Dinamicamente preenchido -->
-                </div>
-            </div>
-        </div>
-
-        <!-- Menu de Pausa -->
-        <div id="pause-menu" class="overlay hidden">
-            <div class="pause-card">
-                <h2>JOGO PAUSADO</h2>
-                <div class="pause-actions">
-                    <button class="primary-btn" onclick="game.togglePause()">CONTINUAR</button>
-                    <button class="secondary-btn" onclick="location.reload()">REINICIAR</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tela de Fim de Jogo (Vitória/Derrota) -->
-        <div id="end-screen" class="overlay hidden">
-            <div id="end-card" class="end-card">
-                <h1 id="end-title">VITÓRIA LENDÁRIA</h1>
-                <p id="end-subtitle">Você se tornou uma lenda do Vale</p>
-                <div class="end-stats">
-                    <div class="stat-line"><span>Onda Alcançada:</span> <span id="stat-wave">100</span></div>
-                    <div class="stat-line"><span>Inimigos Abatidos:</span> <span id="stat-kills">0</span></div>
-                    <div class="stat-line"><span>Ouro Acumulado:</span> <span id="stat-total-gold">0</span></div>
-                </div>
-                <div class="end-actions">
-                    <button class="primary-btn" onclick="location.reload()">JOGAR NOVAMENTE</button>
-                    <button class="secondary-btn" id="infinite-btn" style="display: none;"
-                        onclick="game.startInfiniteMode()">MODO INFINITO</button>
-                </div>
-            </div>
         </div>
     </div>
 
