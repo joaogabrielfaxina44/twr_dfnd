@@ -348,7 +348,7 @@ class Game {
         // Update Skip Wave Button state
         if (this.dom.skipBtn) {
             const progress = this.enemiesSpawned / this.enemiesInWave;
-            const canSkip = this.gameState === 'playing' && progress >= 0.3 && this.enemiesSpawned < this.enemiesInWave;
+            const canSkip = this.gameState === 'playing' && progress >= 0.135 && this.enemiesSpawned < this.enemiesInWave;
             this.dom.skipBtn.disabled = !canSkip;
             if (canSkip) this.dom.skipBtn.innerText = "SKIP WAVE";
             else if (this.enemiesSpawned >= this.enemiesInWave) this.dom.skipBtn.innerText = "CLEARED";
@@ -513,7 +513,7 @@ class Game {
     skipWave() {
         if (this.gameState !== 'playing') return;
         const progress = this.enemiesSpawned / this.enemiesInWave;
-        if (progress < 0.3 || this.enemiesSpawned >= this.enemiesInWave) return;
+        if (progress < 0.135 || this.enemiesSpawned >= this.enemiesInWave) return;
 
         console.log(`[SkipWave] Skipping Wave ${this.wave}. Progress: ${Math.floor(progress * 100)}% (${this.enemiesSpawned}/${this.enemiesInWave})`);
 
@@ -865,7 +865,7 @@ class Game {
         }
 
         // Auto Skip Wave Logic
-        if (this.autoSkip && this.gameState === 'playing' && this.enemiesSpawned < this.enemiesInWave && (this.enemiesSpawned / this.enemiesInWave) >= 0.3) {
+        if (this.autoSkip && this.gameState === 'playing' && this.enemiesSpawned < this.enemiesInWave && (this.enemiesSpawned / this.enemiesInWave) >= 0.135) {
             this.skipWave();
         }
 
