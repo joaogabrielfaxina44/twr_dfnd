@@ -1,3 +1,24 @@
+const COLORS = {
+    primary: '#7b2cbf',
+    secondary: '#ff4d00',
+    accent: '#2de38e',
+    mana: '#00d4ff',
+    gold: '#ffd700',
+    poison: '#a7ff00',
+    ice: '#bde0fe',
+    shadow: 'rgba(0,0,0,0.5)'
+};
+
+const ENEMY_TYPES = {
+    'normal': { hp: 50, speed: 1.2, gold: 15, size: 1.0, color: '#4caf50', icon: '👹' },
+    'fast': { hp: 30, speed: 2.5, gold: 20, size: 0.8, color: '#00bcd4', icon: '🦊' },
+    'tank': { hp: 200, speed: 0.6, gold: 40, size: 1.4, color: '#607d8b', icon: '🗿' },
+    'spawn': { hp: 120, speed: 0.9, gold: 50, size: 1.2, color: '#9c27b0', icon: '🔮' },
+    'shielded': { hp: 100, speed: 0.8, gold: 35, size: 1.1, color: '#4682b4', icon: '🛡️' },
+    'miniboss': { hp: 500, speed: 0.7, gold: 200, size: 1.8, color: '#ffa500', icon: '💀' },
+    'boss': { hp: 2000, speed: 0.4, gold: 500, size: 2.5, color: '#ff5722', icon: '👽' }
+};
+
 class Game {
     constructor() {
         this.canvas = document.getElementById('game-canvas');
@@ -719,20 +740,17 @@ class Game {
 
 class Enemy {
     constructor(wave, game, type = 'normal') {
+        const config = ENEMY_TYPES[type] || ENEMY_TYPES['normal'];
         this.game = game; this.type = type; this.pathIndex = 0;
         this.x = game.path[0].x; this.y = game.path[0].y;
-        this.radius = 12; this.shield = 0;
-        let hpM = 1, spM = 1;
-        switch (type) {
-            case 'fast': hpM = 0.6; spM = 2; this.color = '#ffff00'; break;
-            case 'tank': hpM = 3; spM = 0.6; this.radius = 18; this.color = '#8b4513'; break;
-            case 'spawn': hpM = 1.5; spM = 1; this.color = '#9400d3'; break;
-            case 'shielded': hpM = 1; spM = 0.8; this.shield = 5; this.color = '#4682b4'; break;
-            default: this.color = '#ff4444';
-        }
-        this.maxHp = 20 * Math.pow(1.15, wave - 1) * hpM; this.hp = this.maxHp;
-        this.speed = (1.2 + Math.random() * 0.5) * spM; this.tempSpeed = this.speed;
-        this.bounty = Math.floor(10 * Math.pow(1.05, wave - 1));
+        this.radius = config.size * 12; this.shield = type === 'shielded' ? 5 : 0;
+        this.color = config.color;
+        this.icon = config.icon;
+        this.size = config.size * 15;
+
+        this.maxHp = config.hp * Math.pow(1.15, wave - 1); this.hp = this.maxHp;
+        this.speed = config.speed * (0.8 + Math.random() * 0.4); this.tempSpeed = this.speed;
+        this.bounty = Math.floor(config.gold * Math.pow(1.05, wave - 1));
 
         // --- Special Hierarchies ---
         this.isBoss = type === 'boss';
@@ -892,7 +910,6 @@ class Enemy {
     }
     draw(ctx) {
         ctx.save(); ctx.translate(this.x, this.y);
-        ctx.scale(this.scale, this.scale);
 
         // Damage Flash Effect
         if (this.hitFlash > 0) {
@@ -900,42 +917,31 @@ class Enemy {
             ctx.filter = `brightness(2) sepia(1) hue-rotate(-50deg) saturate(5)`;
         }
 
-        const bob = Math.sin(Date.now() / 150) * 2;
-        const fBob = Math.sin(Date.now() / 80) * 4;
-        switch (this.type) {
-            case 'normal':
-                ctx.fillStyle = '#a5a5a5'; ctx.fillRect(-6, -8 + bob, 12, 14);
-                ctx.fillStyle = '#5d4037'; ctx.beginPath(); ctx.arc(-8, bob, 6, 0, Math.PI * 2); ctx.fill();
-                ctx.strokeStyle = '#cfd8dc'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(6, 4 + bob); ctx.lineTo(12, -2 + bob); ctx.stroke();
-                ctx.fillStyle = '#757575'; ctx.beginPath(); ctx.arc(0, -10 + bob, 5, 0, Math.PI * 2); ctx.fill();
-                break;
-            case 'fast':
-                ctx.save(); ctx.rotate(0.2);
-                ctx.fillStyle = '#1b5e20'; ctx.beginPath(); ctx.moveTo(-5, -5 + fBob); ctx.lineTo(10, 5 + fBob); ctx.lineTo(-5, 10 + fBob); ctx.fill();
-                ctx.fillStyle = '#4caf50'; ctx.fillRect(-4, -6 + fBob, 8, 10);
-                ctx.fillStyle = '#2e7d32'; ctx.beginPath(); ctx.arc(0, -8 + fBob, 4, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-                break;
-            case 'tank':
-                ctx.fillStyle = '#4e342e'; ctx.fillRect(-12, -15 + bob, 24, 25);
-                ctx.fillStyle = '#5d4037'; ctx.fillRect(10, -10 + bob, 8, 20);
-                ctx.fillStyle = '#8d6e63'; ctx.beginPath(); ctx.arc(0, -18 + bob, 8, 0, Math.PI * 2); ctx.fill();
-                break;
-            case 'spawn':
-                const pl = Math.sin(Date.now() / 300) * 3;
-                ctx.globalAlpha = 0.6; ctx.fillStyle = '#9c27b0'; ctx.beginPath(); ctx.arc(0, bob, 15 + pl, 0, Math.PI * 2); ctx.fill();
-                ctx.globalAlpha = 1.0; ctx.fillStyle = '#e1bee7'; ctx.beginPath(); ctx.arc(-5 + pl, -5, 4, 0, Math.PI * 2); ctx.fill();
-                break;
-            case 'shielded':
-                ctx.fillStyle = '#616161'; ctx.fillRect(-10, -10 + bob, 20, 20);
-                ctx.fillStyle = '#212121'; ctx.fillRect(-16, -15 + bob, 10, 30);
-                ctx.fillStyle = '#424242'; ctx.beginPath(); ctx.arc(0, -12 + bob, 7, 0, Math.PI * 2); ctx.fill();
-                break;
-            default:
-                ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
-        }
+        const wobble = Math.sin(Date.now() / 150) * 0.15;
+        const s = 1 + wobble;
+        ctx.scale(s * this.scale, (2 - s) * this.scale);
+
+        // Cute Body (Icon-based)
+        ctx.fillStyle = COLORS.shadow;
+        ctx.beginPath();
+        ctx.ellipse(0, 10, this.radius * 0.8, this.radius * 0.3, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = this.color;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = this.color;
+        ctx.font = `${this.size * 1.5}px serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.icon, 0, 0);
+        ctx.shadowBlur = 0;
+
         ctx.restore();
-        ctx.fillStyle = '#333'; ctx.fillRect(this.x - 10, this.y - 20, 20, 4);
-        ctx.fillStyle = '#2ecc71'; ctx.fillRect(this.x - 10, this.y - 20, 20 * (this.hp / this.maxHp), 4);
+
+        // Health Bar (Fixed position above scaled body)
+        const barW = this.radius * 2;
+        ctx.fillStyle = '#333'; ctx.fillRect(this.x - barW / 2, this.y - this.radius - 20, barW, 4);
+        ctx.fillStyle = '#2ecc71'; ctx.fillRect(this.x - barW / 2, this.y - this.radius - 20, barW * (this.hp / this.maxHp), 4);
     }
 }
 
