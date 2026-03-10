@@ -288,8 +288,18 @@
             </div>
 
             <div class="wave-info" id="wave-display">
-                <span class="hud-label" style="display: block;">ONDA ATUAL</span>
-                <span id="wave-number">1</span>
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px;">
+                    <div>
+                        <span class="hud-label" style="display: block;">ONDA ATUAL</span>
+                        <span id="wave-number">1</span>
+                    </div>
+                    <button id="skip-wave-btn" class="skip-btn-premium" onclick="game.skipWave()" disabled>SKP
+                        [30%]</button>
+                </div>
+                <div class="auto-skip-container">
+                    <input type="checkbox" id="auto-skip-checkbox" onchange="game.toggleAutoSkip(this.checked)">
+                    <label for="auto-skip-checkbox">AUTO SKIP WAVE</label>
+                </div>
             </div>
         </aside>
 

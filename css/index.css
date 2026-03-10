@@ -351,6 +351,62 @@ body {
     margin-top: auto;
     font-size: 1.5rem;
     font-weight: 800;
+    border-top: 1px solid var(--glass-border);
+}
+
+.skip-btn-premium {
+    background: linear-gradient(135deg, #fbc02d, #f9a825);
+    border: none;
+    color: #000;
+    padding: 8px 15px;
+    border-radius: 8px;
+    font-weight: 900;
+    font-size: 0.75rem;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #c49000, 0 8px 15px rgba(249, 168, 37, 0.2);
+    transition: all 0.2s;
+    text-transform: uppercase;
+}
+
+.skip-btn-premium:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 0 #c49000, 0 10px 20px rgba(249, 168, 37, 0.4);
+}
+
+.skip-btn-premium:active:not(:disabled) {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 #c49000;
+}
+
+.skip-btn-premium:disabled {
+    background: #333;
+    color: #666;
+    box-shadow: none;
+    cursor: not-allowed;
+    filter: grayscale(1);
+}
+
+.auto-skip-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.auto-skip-container label {
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: #aaa;
+    letter-spacing: 1px;
+    cursor: pointer;
+}
+
+.auto-skip-container input[type="checkbox"] {
+    accent-color: var(--accent);
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
 }
 
 /* Animations */

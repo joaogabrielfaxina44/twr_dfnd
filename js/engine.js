@@ -46,6 +46,7 @@ class Game {
         this.starting = false;
         this.lastHUDState = {};
         this.activeBoss = null;
+        this.autoSkip = false;
 
         // --- Boss & Mini-Boss Data ---
         this.MINI_BOSS_DATA = {
@@ -269,6 +270,17 @@ class Game {
                 else cooldownEl.style.height = '0%';
             }
         });
+
+        // Update Skip Wave Button state
+        const skipBtn = document.getElementById('skip-wave-btn');
+        if (skipBtn) {
+            const progress = this.enemiesSpawned / this.enemiesInWave;
+            const canSkip = this.gameState === 'playing' && progress >= 0.3 && this.enemiesSpawned < this.enemiesInWave;
+            skipBtn.disabled = !canSkip;
+            if (canSkip) skipBtn.innerText = "SKIP WAVE";
+            else if (this.enemiesSpawned >= this.enemiesInWave) skipBtn.innerText = "CLEARED";
+            else skipBtn.innerText = `SKP [${Math.floor(progress * 100)}%]`;
+        }
     }
 
     start() {
@@ -394,7 +406,6 @@ class Game {
             }
         }
     }
-
     sellSelectedTower() {
         if (this.selectedActiveTower) {
             this.gold += Math.floor(this.towerData[this.selectedActiveTower.type].cost * 0.5 * this.selectedActiveTower.level);
@@ -403,6 +414,46 @@ class Game {
             this.deselectTower();
             this.updateHUD();
         }
+    }
+
+    toggleAutoSkip(value) {
+        this.autoSkip = value;
+        if (this.autoSkip) this.skipWave(); // Check immediately
+    }
+
+    skipWave() {
+        if (this.gameState !== 'playing') return;
+        const progress = this.enemiesSpawned / this.enemiesInWave;
+        if (progress < 0.3 || this.enemiesSpawned >= this.enemiesInWave) return;
+
+        // 1. Give gold for all enemies currently on screen
+        this.enemies.forEach(e => {
+            if (!e.dead) {
+                this.gold += e.bounty;
+                // Visual effect: all enemies burst into gold particles
+                this.createMagicEffect('#ffd700', 5, e.x, e.y);
+            }
+        });
+        this.enemies = []; // Clear them
+
+        // 2. Calculate remaining enemies and give their gold
+        const remaining = this.enemiesInWave - this.enemiesSpawned;
+        if (remaining > 0) {
+            const baseBounty = Math.floor(ENEMY_TYPES['normal'].gold * Math.pow(1.05, this.wave - 1));
+            this.gold += (baseBounty * remaining);
+        }
+
+        // 3. Complete the spawn count
+        this.enemiesSpawned = this.enemiesInWave;
+
+        if (this.activeBoss) {
+            this.activeBoss = null;
+            document.getElementById('boss-health-container').classList.add('hidden');
+        }
+
+        this.announce("ONDA PULADA", `Você recebeu o ouro restante!`);
+        this.updateHUD();
+        this.screenShake = 10;
     }
 
     announce(main, sub) {
@@ -516,6 +567,11 @@ class Game {
             this.enemiesInWave = Math.floor(10 * Math.pow(1.15, this.wave));
             this.announce("ONDA CONCLUÍDA", `Próxima: Onda ${this.wave} | Recompensa: $${reward}`);
             this.updateHUD();
+        }
+
+        // Auto Skip Wave Logic
+        if (this.autoSkip && this.gameState === 'playing' && this.enemiesSpawned < this.enemiesInWave && (this.enemiesSpawned / this.enemiesInWave) >= 0.3) {
+            this.skipWave();
         }
 
         if (this.enemiesSpawned < this.enemiesInWave) {
