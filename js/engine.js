@@ -49,6 +49,7 @@ class Game {
         this.lastHUDState = {};
         this.activeBoss = null;
         this.autoSkip = false;
+        this.waveTimer = 0; // Time since current wave started (ms)
 
         this.particlePool = [];
         for (let i = 0; i < 300; i++) this.particlePool.push(new Particle(0, 0, '#000'));
@@ -347,12 +348,15 @@ class Game {
 
         // Update Skip Wave Button state
         if (this.dom.skipBtn) {
-            const progress = this.enemiesSpawned / this.enemiesInWave;
-            const canSkip = this.gameState === 'playing' && progress >= 0.1 && this.enemiesSpawned < this.enemiesInWave;
+            const skipAvailableAt = 10000;
+            const canSkip = this.gameState === 'playing' && this.waveTimer >= skipAvailableAt && this.enemiesSpawned < this.enemiesInWave;
             this.dom.skipBtn.disabled = !canSkip;
             if (canSkip) this.dom.skipBtn.innerText = "SKIP WAVE";
             else if (this.enemiesSpawned >= this.enemiesInWave) this.dom.skipBtn.innerText = "CLEARED";
-            else this.dom.skipBtn.innerText = `SKP [${Math.floor(progress * 100)}%]`;
+            else {
+                const remaining = Math.ceil((skipAvailableAt - this.waveTimer) / 1000);
+                this.dom.skipBtn.innerText = `SKP [${remaining}s]`;
+            }
         }
     }
 
@@ -512,8 +516,9 @@ class Game {
 
     skipWave() {
         if (this.gameState !== 'playing') return;
+        if (this.waveTimer < 10000 || this.enemiesSpawned >= this.enemiesInWave) return;
+
         const progress = this.enemiesSpawned / this.enemiesInWave;
-        if (progress < 0.1 || this.enemiesSpawned >= this.enemiesInWave) return;
 
         console.log(`[SkipWave] Skipping Wave ${this.wave}. Progress: ${Math.floor(progress * 100)}% (${this.enemiesSpawned}/${this.enemiesInWave})`);
 
@@ -588,6 +593,7 @@ class Game {
         this.wave++;
         this.enemiesSpawned = 0;
         this.enemiesInWave = Math.floor(10 * Math.pow(1.15, this.wave));
+        this.waveTimer = 0; // Reset for next wave
         this.spawnTimer = 0; // Reset timer for fresh start
 
         this.announce("ONDA PULADA", `Reforços inimigos chegaram! (+$${goldFromScreen + completionReward})`);
@@ -823,6 +829,7 @@ class Game {
     }
 
     update(delta) {
+        if (!this.paused) this.waveTimer += delta;
         if (this.screenShake > 0) {
             if (!this.settings.screenShake) this.screenShake = 0;
             else this.screenShake -= delta * 0.05;
@@ -860,12 +867,13 @@ class Game {
             const reward = 100 + (this.wave * 50);
             this.gold += reward; this.wave++; this.enemiesSpawned = 0;
             this.enemiesInWave = Math.floor(10 * Math.pow(1.15, this.wave));
+            this.waveTimer = 0;
             this.announce("ONDA CONCLUÍDA", `Próxima: Onda ${this.wave} | Recompensa: $${reward}`);
             this.updateHUD();
         }
 
         // Auto Skip Wave Logic
-        if (this.autoSkip && this.gameState === 'playing' && this.enemiesSpawned < this.enemiesInWave && (this.enemiesSpawned / this.enemiesInWave) >= 0.1) {
+        if (this.autoSkip && this.gameState === 'playing' && this.enemiesSpawned < this.enemiesInWave && this.waveTimer >= 10000) {
             this.skipWave();
         }
 
