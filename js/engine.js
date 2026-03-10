@@ -1,12 +1,14 @@
 const COLORS = {
-    primary: '#7b2cbf',
-    secondary: '#ff4d00',
-    accent: '#2de38e',
-    mana: '#00d4ff',
-    gold: '#ffd700',
-    poison: '#a7ff00',
-    ice: '#bde0fe',
     shadow: 'rgba(0,0,0,0.5)'
+};
+
+const TOWER_BASE_DATA = {
+    cannon: { cost: 100, name: "Canhão de Cerco", icon: "🏹", color: "#8a2be2", range: 150, baseDmg: 60, atkS: 1000 },
+    fire: { cost: 200, name: "Forja de Vulcão", icon: "🔥", color: "#ff4500", range: 120, baseDmg: 42, atkS: 1200 },
+    ice: { cost: 150, name: "Pináculo de Gelo", icon: "❄️", color: "#00bfff", range: 130, baseDmg: 24, atkS: 1500 },
+    lightning: { cost: 300, name: "Bobina de Raio", icon: "⚡", color: "#ffff00", range: 180, baseDmg: 28, atkS: 600 },
+    magic: { cost: 400, name: "Santuário Arcano", icon: "✨", color: "#da70d6", range: 160, baseDmg: 37, atkS: 2000 },
+    poison: { cost: 250, name: "Lab. de Peste", icon: "🧪", color: "#32cd32", range: 140, baseDmg: 16, atkS: 1300 }
 };
 
 const ENEMY_TYPES = {
@@ -47,6 +49,25 @@ class Game {
         this.lastHUDState = {};
         this.activeBoss = null;
         this.autoSkip = false;
+
+        this.particlePool = [];
+        for (let i = 0; i < 300; i++) this.particlePool.push(new Particle(0, 0, '#000'));
+        this.particleIndex = 0;
+
+        // Cache DOM Elements for performance
+        this.dom = {
+            gold: document.getElementById('gold-value'),
+            hp: document.getElementById('hp-value'),
+            wave: document.getElementById('wave-number'),
+            evolutionMenu: document.getElementById('evolution-menu'),
+            bossHealth: document.getElementById('boss-health-container'),
+            bossName: document.getElementById('boss-name'),
+            bossFill: document.getElementById('boss-hp-fill'),
+            skipBtn: document.getElementById('skip-wave-btn'),
+            announcement: document.getElementById('announcement'),
+            annMain: document.getElementById('announcement-main'),
+            annSub: document.getElementById('announcement-sub')
+        };
 
         // --- Boss & Mini-Boss Data ---
         this.MINI_BOSS_DATA = {
@@ -116,14 +137,7 @@ class Game {
         };
 
         this.towerLimits = { cannon: 0, fire: 0, ice: 0, lightning: 0, magic: 0, poison: 0 };
-        this.towerData = {
-            cannon: { cost: 100, name: "Canhão de Cerco", icon: "🏹", color: "#8a2be2", range: 150, baseDmg: 60 },
-            fire: { cost: 200, name: "Forja de Vulcão", icon: "🔥", color: "#ff4500", range: 120, baseDmg: 42 },
-            ice: { cost: 150, name: "Pináculo de Gelo", icon: "❄️", color: "#00bfff", range: 130, baseDmg: 24 },
-            lightning: { cost: 300, name: "Bobina de Raio", icon: "⚡", color: "#ffff00", range: 180, baseDmg: 28 },
-            magic: { cost: 400, name: "Santuário Arcano", icon: "✨", color: "#da70d6", range: 160, baseDmg: 37 },
-            poison: { cost: 250, name: "Lab. de Peste", icon: "🧪", color: "#32cd32", range: 140, baseDmg: 16 }
-        };
+        this.towerData = TOWER_BASE_DATA;
 
         this.init();
         this.setupBackground();
@@ -216,9 +230,9 @@ class Game {
         bctx.stroke();
 
         // Optimized Map Decorations (Pre-rendered)
-        this.decorations = [];
+        const decorations = [];
         for (let i = 0; i < 40; i++) {
-            this.decorations.push({
+            decorations.push({
                 x: Math.random() * 800,
                 y: Math.random() * 600,
                 type: Math.random() < 0.3 ? '🌲' : (Math.random() < 0.6 ? '🪨' : '🍄'),
@@ -226,7 +240,7 @@ class Game {
                 opacity: 0.2 + Math.random() * 0.3
             });
         }
-        this.decorations.forEach(d => {
+        decorations.forEach(d => {
             bctx.font = `${d.size}px serif`;
             bctx.globalAlpha = d.opacity;
             bctx.fillText(d.type, d.x, d.y);
@@ -235,16 +249,23 @@ class Game {
     }
 
     updateHUD(force = false) {
-        const state = { gold: Math.floor(this.gold), hp: this.hp, wave: this.wave };
-        if (!force && JSON.stringify(state) === JSON.stringify(this.lastHUDState)) {
-            // Check shop items too if performance allows, or just skip if state is same
-        }
-        this.lastHUDState = state;
+        const currentGold = Math.floor(this.gold);
+        const hudChanged = force ||
+            currentGold !== this.lastHUDState.gold ||
+            this.hp !== this.lastHUDState.hp ||
+            this.wave !== this.lastHUDState.wave ||
+            this.enemiesSpawned !== this.lastHUDState.spawned;
 
-        const gV = document.getElementById('gold-value'), hV = document.getElementById('hp-value'), wV = document.getElementById('wave-number');
-        if (gV) gV.innerText = state.gold;
-        if (hV) hV.innerText = Math.max(0, state.hp);
-        if (wV) wV.innerText = state.wave;
+        if (!hudChanged) return;
+
+        this.lastHUDState.gold = currentGold;
+        this.lastHUDState.hp = this.hp;
+        this.lastHUDState.wave = this.wave;
+        this.lastHUDState.spawned = this.enemiesSpawned;
+
+        if (this.dom.gold) this.dom.gold.innerText = currentGold;
+        if (this.dom.hp) this.dom.hp.innerText = Math.max(0, this.hp);
+        if (this.dom.wave) this.dom.wave.innerText = this.wave;
 
         Object.keys(this.towerData).forEach(type => {
             const el = document.getElementById('shop-' + type);
@@ -272,14 +293,13 @@ class Game {
         });
 
         // Update Skip Wave Button state
-        const skipBtn = document.getElementById('skip-wave-btn');
-        if (skipBtn) {
+        if (this.dom.skipBtn) {
             const progress = this.enemiesSpawned / this.enemiesInWave;
             const canSkip = this.gameState === 'playing' && progress >= 0.3 && this.enemiesSpawned < this.enemiesInWave;
-            skipBtn.disabled = !canSkip;
-            if (canSkip) skipBtn.innerText = "SKIP WAVE";
-            else if (this.enemiesSpawned >= this.enemiesInWave) skipBtn.innerText = "CLEARED";
-            else skipBtn.innerText = `SKP [${Math.floor(progress * 100)}%]`;
+            this.dom.skipBtn.disabled = !canSkip;
+            if (canSkip) this.dom.skipBtn.innerText = "SKIP WAVE";
+            else if (this.enemiesSpawned >= this.enemiesInWave) this.dom.skipBtn.innerText = "CLEARED";
+            else this.dom.skipBtn.innerText = `SKP [${Math.floor(progress * 100)}%]`;
         }
     }
 
@@ -319,7 +339,10 @@ class Game {
     }
 
     processClick(x, y, screenX, screenY) {
-        const clickedTower = this.towers.find(t => Math.sqrt((t.x - x) ** 2 + (t.y - y) ** 2) < 25);
+        const clickedTower = this.towers.find(t => {
+            const dx = t.x - x, dy = t.y - y;
+            return (dx * dx + dy * dy) < 625; // 25^2
+        });
         if (clickedTower) {
             this.selectedActiveTower = clickedTower;
             this.showUpgradeMenu();
@@ -340,7 +363,12 @@ class Game {
         }
     }
 
-    isOverlappingTower(x, y) { return this.towers.some(t => Math.sqrt((t.x - x) ** 2 + (t.y - y) ** 2) < 40); }
+    isOverlappingTower(x, y) {
+        return this.towers.some(t => {
+            const dx = t.x - x, dy = t.y - y;
+            return (dx * dx + dy * dy) < 1600; // 40^2
+        });
+    }
 
     deselectTower() {
         this.selectedActiveTower = null;
@@ -358,10 +386,18 @@ class Game {
             const minY = Math.min(p1.y, p2.y) - dist, maxY = Math.max(p1.y, p2.y) + dist;
             if (x < minX || x > maxX || y < minY || y > maxY) continue;
 
-            const L2 = (p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2;
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const L2 = dx * dx + dy * dy;
             if (L2 === 0) continue;
-            let t = Math.max(0, Math.min(1, ((x - p1.x) * (p2.x - p1.x) + (y - p1.y) * (p2.y - p1.y)) / L2));
-            const actualDistSq = (x - (p1.x + t * (p2.x - p1.x))) ** 2 + (y - (p1.y + t * (p2.y - p1.y))) ** 2;
+
+            let t = ((x - p1.x) * dx + (y - p1.y) * dy) / L2;
+            t = Math.max(0, Math.min(1, t));
+
+            const projX = p1.x + t * dx;
+            const projY = p1.y + t * dy;
+            const actualDistSq = (x - projX) ** 2 + (y - projY) ** 2;
+
             if (actualDistSq < distSq) return true;
         }
         return false;
@@ -559,7 +595,10 @@ class Game {
     createMagicEffect(color, count, x = null, y = null) {
         for (let i = 0; i < count; i++) {
             const px = x !== null ? x : Math.random() * 800, py = y !== null ? y : Math.random() * 600;
-            this.particles.push(new Particle(px, py, color));
+            const p = this.particlePool[this.particleIndex];
+            p.reset(px, py, color);
+            if (!this.particles.includes(p)) this.particles.push(p);
+            this.particleIndex = (this.particleIndex + 1) % this.particlePool.length;
         }
     }
 
@@ -583,30 +622,30 @@ class Game {
         if (this.overlayTimer > 0) this.overlayTimer -= delta;
         else this.screenColorOverlay = null;
 
-        this.vfxLayer = this.vfxLayer.filter(v => {
-            if (v.type === 'arrow') { v.y += v.speed; return v.y < 700; }
-            if (v.type === 'explosion') { v.radius += 10; v.life -= 2; return v.life > 0; }
-            if (v.type === 'lightning_strike') { v.life -= 10; return v.life > 0; }
-            if (v.type === 'orbital') { v.life -= 2; return v.life > 0; }
-            if (v.type === 'ice_prison' || v.type === 'gas_cloud') { v.life -= 16; return v.life > 0; }
-            return v.life > 0;
-        });
-
         this.particles = this.particles.filter(p => {
             if (p.update) p.update(delta);
             else if (p.life !== undefined) {
                 p.life -= delta;
-                if (p.type === 'lightning_arc') p.life -= 10;
                 if (p.type === 'puddle') {
-                    this.enemies.forEach(e => { if (Math.sqrt((e.x - p.x) ** 2 + (e.y - p.y) ** 2) < 30) e.takeDamage(p.dmg * (delta / 1000), true); });
+                    this.enemies.forEach(e => {
+                        const dx = e.x - p.x, dy = e.y - p.y;
+                        if ((dx * dx + dy * dy) < 900) e.takeDamage(p.dmg * (delta / 1000), true);
+                    });
                 }
             }
             return p.life > 0;
         });
 
-        // Optimization: Cap particles to 300
-        if (this.particles.length > 300) {
-            this.particles.splice(0, this.particles.length - 300);
+        // VFX Layer optimization: Avoid frequent filtering if possible
+        if (this.vfxLayer.length > 0) {
+            this.vfxLayer = this.vfxLayer.filter(v => {
+                if (v.type === 'arrow') { v.y += v.speed; return v.y < 700; }
+                if (v.type === 'explosion') { v.radius += 10; v.life -= 2; return v.life > 0; }
+                if (v.type === 'lightning_strike') { v.life -= 10; return v.life > 0; }
+                if (v.type === 'orbital') { v.life -= 2; return v.life > 0; }
+                if (v.type === 'ice_prison' || v.type === 'gas_cloud') { v.life -= 16; return v.life > 0; }
+                return v.life > 0;
+            });
         }
 
         if (this.enemies.length === 0 && this.enemiesSpawned >= this.enemiesInWave) {
@@ -664,25 +703,35 @@ class Game {
             }
         }
 
-        this.enemies.forEach(e => {
+        for (let i = this.enemies.length - 1; i >= 0; i--) {
+            const e = this.enemies[i];
             e.update(delta);
             if (e.dead) {
-                if (e.reachedEnd) { this.hp--; this.updateHUD(); }
-                else {
-                    this.gold += e.bounty; this.updateHUD();
-                    if (e.type === 'spawn') for (let j = 0; j < 2; j++) {
-                        const sub = new Enemy(this.wave, this, 'normal');
-                        sub.x = e.x; sub.y = e.y; sub.hp = sub.maxHp * 0.5; sub.pathIndex = e.pathIndex;
-                        this.enemies.push(sub);
+                if (e.reachedEnd) {
+                    this.hp--;
+                    this.updateHUD();
+                } else {
+                    this.gold += e.bounty;
+                    this.updateHUD();
+                    if (e.type === 'spawn') {
+                        for (let j = 0; j < 2; j++) {
+                            const sub = new Enemy(this.wave, this, 'normal');
+                            sub.x = e.x; sub.y = e.y; sub.hp = sub.maxHp * 0.5; sub.pathIndex = e.pathIndex;
+                            this.enemies.push(sub);
+                        }
                     }
                 }
+                this.enemies.splice(i, 1);
             }
-        });
-        this.enemies = this.enemies.filter(e => !e.dead);
+        }
 
         this.towers.forEach(t => t.update(delta));
-        this.projectiles.forEach(p => p.update(delta));
-        this.projectiles = this.projectiles.filter(p => !p.dead);
+
+        for (let i = this.projectiles.length - 1; i >= 0; i--) {
+            const p = this.projectiles[i];
+            p.update(delta);
+            if (p.dead) this.projectiles.splice(i, 1);
+        }
     }
 
     draw() {
@@ -877,14 +926,16 @@ class Enemy {
         }
 
         this.slowT = 0; this.burnT = 0; this.burnD = 0; this.poisonT = 0; this.poisonD = 0;
-        this.armorReduction = 1.0; // 1.0 = normal, 0.75 = 25% reduction (more damage)
-        this.damageTakenMult = 1.0; // bonus damage from all sources
+        this.armorReduction = 1.0;
+        this.damageTakenMult = 1.0;
         this.stunT = 0;
         this.lastT = 0; this.dead = false; this.reachedEnd = false;
-        this.viralMarker = false; // For Level 7 Poison
-        this.icePrisonMarker = 0; // For Level 7 Ice
+        this.viralMarker = false;
+        this.icePrisonMarker = 0;
+        this.hitFlash = 0;
     }
     update(delta) {
+        if (this.hitFlash > 0) this.hitFlash -= delta;
         if (this.stunT > 0) { this.stunT -= delta; return; }
         if (this.slowT > 0) { this.slowT -= delta; if (this.slowT <= 0) { this.tempSpeed = this.speed; this.damageTakenMult = 1.0; } }
 
@@ -915,9 +966,10 @@ class Enemy {
             // Interval Skills
             if (this.skillType === 'group_heal') {
                 this.game.enemies.forEach(e => {
-                    if (e !== this && Math.sqrt((e.x - this.x) ** 2 + (e.y - this.y) ** 2) < 100) {
+                    const dx = e.x - this.x, dy = e.y - this.y;
+                    if (e !== this && (dx * dx + dy * dy) < 10000) { // 100^2
                         e.hp = Math.min(e.maxHp, e.hp + 20);
-                        this.game.particles.push({ x: e.x, y: e.y, color: '#4caf50', life: 50, size: 2 });
+                        this.game.createMagicEffect('#4caf50', 1, e.x, e.y);
                     }
                 });
             }
@@ -1015,10 +1067,11 @@ class Enemy {
     draw(ctx) {
         ctx.save(); ctx.translate(this.x, this.y);
 
-        // Damage Flash Effect
         if (this.hitFlash > 0) {
-            this.hitFlash -= 16; // Approx delta
-            ctx.filter = `brightness(2) sepia(1) hue-rotate(-50deg) saturate(5)`;
+            ctx.fillStyle = 'rgba(255, 255, 255, ' + (this.hitFlash / 100) + ')';
+            ctx.beginPath();
+            ctx.arc(0, 0, this.radius * 1.2, 0, Math.PI * 2);
+            ctx.fill();
         }
 
         const wobble = Math.sin(Date.now() / 150) * 0.15;
@@ -1053,27 +1106,22 @@ class Tower {
     constructor(x, y, game, type) {
         this.x = x; this.y = y; this.game = game; this.type = type; this.level = 1; this.timer = 0;
         this.muzzleFlash = 0;
-        this.internalTimer = 0; // Cooldown for active abilities
-        this.manaFocusTimer = 0; // Sanctuary Arcano
-        this.speedBonus = 0; // Bobina de Raio
-        this.iceHitCount = 0; // Pináculo de Gelo
+        this.internalTimer = 0;
+        this.manaFocusTimer = 0;
+        this.speedBonus = 0;
         this.currentTarget = null;
         const d = game.towerData[type];
-        this.range = d.range; this.damage = d.baseDmg;
-        switch (type) {
-            case 'cannon': this.atkS = 1000; break;
-            case 'fire': this.atkS = 1200; break;
-            case 'ice': this.atkS = 1500; break;
-            case 'lightning': this.atkS = 600; break;
-            case 'magic': this.atkS = 2000; break;
-            case 'poison': this.atkS = 1300; break;
-        }
+        this.range = d.range;
+        this.rangeSq = d.range * d.range;
+        this.damage = d.baseDmg;
+        this.atkS = d.atkS;
     }
     getUpgradeCost() { return Math.floor(this.game.towerData[this.type].cost * Math.pow(1.8, this.level)); }
     upgrade() {
         this.level++;
         this.damage *= 1.4;
         this.range += 15;
+        this.rangeSq = this.range * this.range;
         this.atkS *= 0.9;
     }
     update(delta) {
@@ -1081,12 +1129,14 @@ class Tower {
         this.timer += delta;
 
         // Reset counters if target lost/changed
-        const bestTarget = this.game.enemies.find(e => Math.sqrt((e.x - this.x) ** 2 + (e.y - this.y) ** 2) <= this.range);
+        const bestTarget = this.game.enemies.find(e => {
+            const dx = e.x - this.x, dy = e.y - this.y;
+            return (dx * dx + dy * dy) <= this.rangeSq;
+        });
         if (bestTarget !== this.currentTarget) {
             this.currentTarget = bestTarget;
             this.manaFocusTimer = 0;
             this.speedBonus = 0;
-            this.iceHitCount = 0;
         }
 
         if (this.timer >= this.atkS * (1 - this.speedBonus)) {
@@ -1353,22 +1403,43 @@ class Projectile {
         this.hitEnemies = new Set();
     }
     update(delta) {
-        if (Math.random() > 0.8) this.game.particles.push(new Particle(this.x, this.y, this.game.towerData[this.type].color));
+        if (Math.random() > 0.8) this.game.createMagicEffect(this.game.towerData[this.type].color, 1, this.x, this.y);
 
         if (this.piercing) {
-            if (!this.vx) { const dx = this.target.x - this.x, dy = this.target.y - this.y, d = Math.sqrt(dx * dx + dy * dy); this.vx = (dx / d) * this.speed; this.vy = (dy / d) * this.speed; }
-            this.x += this.vx; this.y += this.vy;
-            this.game.enemies.forEach(e => {
-                if (!this.hitEnemies.has(e) && Math.sqrt((e.x - this.x) ** 2 + (e.y - this.y) ** 2) < e.radius + 5) {
-                    this.applyEffects(e); this.hitEnemies.add(e);
+            if (!this.vx) {
+                const dx = this.target.x - this.x, dy = this.target.y - this.y;
+                const d = Math.sqrt(dx * dx + dy * dy);
+                this.vx = (dx / (d || 1)) * this.speed;
+                this.vy = (dy / (d || 1)) * this.speed;
+            }
+            this.x += this.vx * (delta / 16);
+            this.y += this.vy * (delta / 16);
+
+            for (let i = 0; i < this.game.enemies.length; i++) {
+                const e = this.game.enemies[i];
+                if (!this.hitEnemies.has(e)) {
+                    const dx = e.x - this.x, dy = e.y - this.y;
+                    const r = e.radius + 5;
+                    if ((dx * dx + dy * dy) < r * r) {
+                        this.applyEffects(e);
+                        this.hitEnemies.add(e);
+                    }
                 }
-            });
-            if (this.x < 0 || this.x > 800 || this.y < 0 || this.y > 600) this.dead = true;
+            }
+            if (this.x < -50 || this.x > 850 || this.y < -50 || this.y > 650) this.dead = true;
         } else {
             if (!this.target || this.target.dead) { this.dead = true; return; }
-            const dx = this.target.x - this.x, dy = this.target.y - this.y, d = Math.sqrt(dx * dx + dy * dy);
-            if (d < 10) { this.applyEffects(this.target); this.dead = true; }
-            else { this.x += (dx / d) * this.speed; this.y += (dy / d) * this.speed; }
+            const dx = this.target.x - this.x, dy = this.target.y - this.y;
+            const d2 = dx * dx + dy * dy;
+            if (d2 < 100) { // 10^2
+                this.applyEffects(this.target);
+                this.dead = true;
+            } else {
+                const d = Math.sqrt(d2);
+                const step = this.speed * (delta / 16);
+                this.x += (dx / d) * step;
+                this.y += (dy / d) * step;
+            }
         }
     }
     applyEffects(t) {
@@ -1380,7 +1451,6 @@ class Projectile {
         if (this.type === 'ice') {
             t.slow(0.4, 5000, this.towerLevel >= 5 ? 1.15 : 1.0);
             if (this.towerLevel >= 7) {
-                const tower = this.game.towers.find(tw => tw.x === this.startX && tw.y === this.startY); // Approximation
                 t.icePrisonMarker++;
                 if (t.icePrisonMarker >= 5) { t.stun(3000); t.icePrisonMarker = 0; this.game.vfxLayer.push({ type: 'ice_prison', x: t.x, y: t.y, life: 3000 }); }
             }
@@ -1408,7 +1478,10 @@ class Projectile {
                 const hits = new Set([t]);
                 const chain = () => {
                     if (jumps <= 0) return;
-                    const next = this.game.enemies.find(e => !hits.has(e) && Math.sqrt((e.x - lastT.x) ** 2 + (e.y - lastT.y) ** 2) < 100);
+                    const next = this.game.enemies.find(e => {
+                        const dx = e.x - lastT.x, dy = e.y - lastT.y;
+                        return !hits.has(e) && (dx * dx + dy * dy) < 10000;
+                    });
                     if (next) {
                         next.takeDamage(this.damage * 0.7);
                         this.game.particles.push({ type: 'lightning_arc', x: lastT.x, y: lastT.y, tx: next.x, ty: next.y, life: 100 });
@@ -1450,27 +1523,26 @@ class Projectile {
 }
 
 class Particle {
-    constructor(x, y, color, isDust = false) {
-        this.x = x; this.y = y; this.color = color;
-        this.vx = (Math.random() - 0.5) * (isDust ? 1 : 5);
-        this.vy = (Math.random() - 0.5) * (isDust ? 1 : 5);
-        this.life = 100;
-        this.size = isDust ? Math.random() * 4 + 2 : 4;
-        this.isDust = isDust;
+    constructor(x, y, color) {
+        this.reset(x, y, color);
     }
-    update() {
-        this.x += this.vx; this.y += this.vy;
-        this.life -= this.isDust ? 10 : 5; // Faster fade to clear memory
+    reset(x, y, color) {
+        this.x = x; this.y = y; this.color = color;
+        this.vx = (Math.random() - 0.5) * 5;
+        this.vy = (Math.random() - 0.5) * 5;
+        this.life = 100;
+        this.size = 4;
+        return this;
+    }
+    update(delta) {
+        this.x += this.vx * (delta / 16);
+        this.y += this.vy * (delta / 16);
+        this.life -= 5 * (delta / 16);
     }
     draw(ctx) {
-        ctx.globalAlpha = this.life / 100;
+        ctx.globalAlpha = Math.max(0, this.life / 100);
         ctx.fillStyle = this.color;
-        if (this.isDust) {
-            ctx.beginPath(); ctx.arc(this.x, this.y, this.size * (this.life / 100), 0, Math.PI * 2); ctx.fill();
-        } else {
-            ctx.fillRect(this.x, this.y, this.size, this.size);
-        }
-        ctx.globalAlpha = 1.0;
+        ctx.fillRect(this.x, this.y, this.size, this.size);
     }
 }
 
