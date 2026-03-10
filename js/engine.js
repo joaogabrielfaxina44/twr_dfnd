@@ -426,23 +426,31 @@ class Game {
         const progress = this.enemiesSpawned / this.enemiesInWave;
         if (progress < 0.3 || this.enemiesSpawned >= this.enemiesInWave) return;
 
-        // 1. Award gold for enemies ALREADY on screen (and set bounty to 0)
+        console.log(`[SkipWave] Skipping Wave ${this.wave}. Progress: ${Math.floor(progress * 100)}% (${this.enemiesSpawned}/${this.enemiesInWave})`);
+
+        // 1. Award gold for enemies ALREADY on screen
+        let goldFromScreen = 0;
         this.enemies.forEach(e => {
             if (!e.dead && e.bounty > 0) {
-                this.gold += e.bounty;
+                goldFromScreen += e.bounty;
                 this.createMagicEffect('#ffd700', 3, e.x, e.y);
-                e.bounty = 0;
+                e.bounty = 0; // Prevent double gold
             }
         });
+        this.gold += goldFromScreen;
 
-        // 2. Spawn all REMAINING enemies of the current wave at once
+        // 2. Spawn all REMAINING enemies of the current wave
         const remainingToSpawn = this.enemiesInWave - this.enemiesSpawned;
         const isMiniBossWave = this.wave % 10 === 5;
         const isBossWave = this.wave % 10 === 0;
+        let spawnedHordaCount = 0;
 
         for (let i = 0; i < remainingToSpawn; i++) {
             let enemy;
             const currentSpawnIndex = this.enemiesSpawned + i;
+
+            // Note: Boss/MiniBoss usually spawn at index 0, which is handled naturally at wave start.
+            // But we keep this check for safety.
             if ((isMiniBossWave || isBossWave) && currentSpawnIndex === 0) {
                 const data = isBossWave ? this.BOSS_DATA[this.wave] : this.MINI_BOSS_DATA[this.wave];
                 if (data) {
@@ -451,8 +459,10 @@ class Game {
                     enemy.skillType = data.skill;
                     if (isBossWave) {
                         this.activeBoss = enemy;
-                        document.getElementById('boss-health-container').classList.remove('hidden');
-                        document.getElementById('boss-name').innerText = data.name.toUpperCase();
+                        const hb = document.getElementById('boss-health-container');
+                        if (hb) hb.classList.remove('hidden');
+                        const bn = document.getElementById('boss-name');
+                        if (bn) bn.innerText = data.name.toUpperCase();
                     }
                 } else {
                     enemy = new Enemy(this.wave, this, 'normal');
@@ -467,22 +477,29 @@ class Game {
                 enemy = new Enemy(this.wave, this, type);
             }
 
-            this.gold += enemy.bounty;
-            enemy.bounty = 0;
-            enemy.x += (Math.random() - 0.5) * 40; // Cluster effect
-            this.enemies.push(enemy);
+            if (enemy) {
+                this.gold += enemy.bounty;
+                enemy.bounty = 0; // Already paid
+                enemy.x += (Math.random() - 0.5) * 50;
+                enemy.y += (Math.random() - 0.5) * 30; // More spread
+                this.enemies.push(enemy);
+                spawnedHordaCount++;
+            }
         }
 
-        // 3. Complete current wave status and award completion reward
-        const reward = 100 + (this.wave * 50);
-        this.gold += reward;
+        console.log(`[SkipWave] Spawned ${spawnedHordaCount} horda enemies.`);
 
-        // 4. Force immediate transition to the status of the next wave
+        // 3. Award Wave Completion Reward
+        const completionReward = 100 + (this.wave * 50);
+        this.gold += completionReward;
+
+        // 4. Advance to Next Wave State
         this.wave++;
         this.enemiesSpawned = 0;
         this.enemiesInWave = Math.floor(10 * Math.pow(1.15, this.wave));
+        this.spawnTimer = 0; // Reset timer for fresh start
 
-        this.announce("ONDA PULADA", `Reforços inimigos chegaram!`);
+        this.announce("ONDA PULADA", `Reforços inimigos chegaram! (+$${goldFromScreen + completionReward})`);
         this.updateHUD();
         this.screenShake = 15;
     }
