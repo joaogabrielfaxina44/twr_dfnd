@@ -374,20 +374,85 @@
         <!-- Menu de Pausa Premium -->
         <div id="pause-menu" class="hidden">
             <div class="pause-frame">
-                <div class="pause-header">PAUSADO</div>
-                <div class="pause-options">
-                    <button class="menu-btn" onclick="game.togglePause()">
-                        <span class="btn-icon">▶️</span> CONTINUAR
-                    </button>
-                    <button class="menu-btn" onclick="game.toggleSettings()">
-                        <span class="btn-icon">⚙️</span> AJUSTES
-                    </button>
-                    <button class="menu-btn" onclick="game.openGallery()">
-                        <span class="btn-icon">💀</span> GALERIA DE BOSSES
-                    </button>
-                    <button class="menu-btn" onclick="location.reload()">
-                        <span class="btn-icon">🚪</span> SAIR
-                    </button>
+                <!-- Main Pause Options -->
+                <div id="pause-main-options">
+                    <div class="pause-header">PAUSADO</div>
+                    <div class="pause-options">
+                        <button class="menu-btn" onclick="game.togglePause()">
+                            <span class="btn-icon">▶️</span> CONTINUAR
+                        </button>
+                        <button class="menu-btn" onclick="game.toggleSettings()">
+                            <span class="btn-icon">⚙️</span> AJUSTES
+                        </button>
+                        <button class="menu-btn" onclick="game.openGallery()">
+                            <span class="btn-icon">💀</span> GALERIA DE BOSSES
+                        </button>
+                        <button class="menu-btn" onclick="location.reload()">
+                            <span class="btn-icon">🚪</span> SAIR
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Settings Panel -->
+                <div id="settings-panel" class="hidden">
+                    <div class="pause-header">AJUSTES</div>
+                    <div class="settings-content">
+                        <!-- Audio -->
+                        <div class="settings-group">
+                            <label>ÁUDIO</label>
+                            <div class="setting-row">
+                                <span>MÚSICA</span>
+                                <input type="range" id="bgm-volume" min="0" max="1" step="0.1"
+                                    oninput="game.updateSettings()">
+                            </div>
+                            <div class="setting-row">
+                                <span>EFEITOS</span>
+                                <input type="range" id="sfx-volume" min="0" max="1" step="0.1"
+                                    oninput="game.updateSettings()">
+                            </div>
+                            <div class="setting-row">
+                                <span>MUDO</span>
+                                <input type="checkbox" id="mute-all" onchange="game.updateSettings()">
+                            </div>
+                        </div>
+
+                        <!-- Video -->
+                        <div class="settings-group">
+                            <label>VÍDEO & PERFORMANCE</label>
+                            <div class="setting-row">
+                                <span>DENSIDADE VFX</span>
+                                <select id="vfx-density" onchange="game.updateSettings()">
+                                    <option value="low">BAIXO</option>
+                                    <option value="medium" selected>MÉDIO</option>
+                                    <option value="high">ALTO</option>
+                                </select>
+                            </div>
+                            <div class="setting-row">
+                                <span>TREMOR DE TELA</span>
+                                <input type="checkbox" id="screen-shake-toggle" checked
+                                    onchange="game.updateSettings()">
+                            </div>
+                            <div class="setting-row">
+                                <span>FULLSCREEN</span>
+                                <button class="small-btn" onclick="game.toggleFullscreen()">ALTERNAR</button>
+                            </div>
+                        </div>
+
+                        <!-- Gameplay -->
+                        <div class="settings-group">
+                            <label>JOGABILIDADE</label>
+                            <div class="setting-row">
+                                <span>EXIBIR ALCANCE TUDO</span>
+                                <input type="checkbox" id="show-all-range" onchange="game.updateSettings()">
+                            </div>
+                        </div>
+
+                        <button class="menu-btn back-btn" onclick="game.toggleSettings()">
+                            <span class="btn-icon">⬅️</span> VOLTAR
+                        </button>
+
+                        <button class="danger-btn" onclick="game.confirmReset()">RESETAR PROGRESSO</button>
+                    </div>
                 </div>
             </div>
         </div>

@@ -134,6 +134,16 @@ class Game {
 
         this.defeatedBosses = JSON.parse(localStorage.getItem('defeatedBosses') || '[]');
 
+        // --- Settings Management ---
+        this.settings = JSON.parse(localStorage.getItem('ultraDefendersSettings') || JSON.stringify({
+            bgm: 0.5,
+            sfx: 0.7,
+            mute: false,
+            vfx: 'medium',
+            screenShake: true,
+            showAllRange: false
+        }));
+
         // Load Splash Screen (Primary JPG.PNG as found in folder)
         this.splashImg = new Image();
         this.splashImg.src = 'splash.jpg.png';
@@ -215,6 +225,7 @@ class Game {
         // So we remove the global document click that starts the game instantly.
 
         this.updateHUD();
+        this.applySettings();
     }
 
     setupBackground() {
@@ -637,7 +648,12 @@ class Game {
     }
 
     createMagicEffect(color, count, x = null, y = null) {
-        for (let i = 0; i < count; i++) {
+        let finalCount = count;
+        if (this.settings.vfx === 'medium') finalCount = Math.floor(count * 0.5);
+        if (this.settings.vfx === 'low') finalCount = Math.floor(count * 0.2);
+        if (finalCount < 1 && count > 0 && Math.random() < 0.2) finalCount = 1;
+
+        for (let i = 0; i < finalCount; i++) {
             const px = x !== null ? x : Math.random() * 800, py = y !== null ? y : Math.random() * 600;
             const p = this.particlePool[this.particleIndex];
             p.reset(px, py, color);
@@ -654,11 +670,91 @@ class Game {
         if (!this.paused) {
             this.lastTime = performance.now();
             this.closeGallery();
+
+            // Auto close settings if they were open and save
+            const setPanel = document.getElementById('settings-panel');
+            const mainOpts = document.getElementById('pause-main-options');
+            if (setPanel && !setPanel.classList.contains('hidden')) {
+                setPanel.classList.add('hidden');
+                if (mainOpts) mainOpts.classList.remove('hidden');
+                this.saveSettings();
+            }
         }
     }
 
     toggleSettings() {
-        this.announce("AJUSTES", "Em breve: Volume e Qualidade");
+        const mainOpts = document.getElementById('pause-main-options');
+        const setPanel = document.getElementById('settings-panel');
+        if (!mainOpts || !setPanel) return;
+
+        if (setPanel.classList.contains('hidden')) {
+            // Opening Settings
+            mainOpts.classList.add('hidden');
+            setPanel.classList.remove('hidden');
+            this.syncSettingsUI();
+        } else {
+            // Closing Settings (Back to Pause)
+            mainOpts.classList.remove('hidden');
+            setPanel.classList.add('hidden');
+            this.saveSettings();
+        }
+    }
+
+    syncSettingsUI() {
+        document.getElementById('bgm-volume').value = this.settings.bgm;
+        document.getElementById('sfx-volume').value = this.settings.sfx;
+        document.getElementById('mute-all').checked = this.settings.mute;
+        document.getElementById('vfx-density').value = this.settings.vfx;
+        document.getElementById('screen-shake-toggle').checked = this.settings.screenShake;
+        document.getElementById('show-all-range').checked = this.settings.showAllRange;
+    }
+
+    updateSettings() {
+        this.settings.bgm = parseFloat(document.getElementById('bgm-volume').value);
+        this.settings.sfx = parseFloat(document.getElementById('sfx-volume').value);
+        this.settings.mute = document.getElementById('mute-all').checked;
+        this.settings.vfx = document.getElementById('vfx-density').value;
+        this.settings.screenShake = document.getElementById('screen-shake-toggle').checked;
+        this.settings.showAllRange = document.getElementById('show-all-range').checked;
+
+        // Apply immediate changes (like volume or range visibility)
+        this.applySettings();
+    }
+
+    applySettings() {
+        // Placeholder for Audio Bus logic (if audio is implemented)
+        if (window.bgmSource) window.bgmSource.volume = this.settings.mute ? 0 : this.settings.bgm;
+
+        // Local saving on every change for safety
+        this.saveSettings();
+    }
+
+    saveSettings() {
+        localStorage.setItem('ultraDefendersSettings', JSON.stringify(this.settings));
+    }
+
+    toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                this.announce("ERRO", "Tela cheia não suportada");
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    }
+
+    confirmReset() {
+        const confirm1 = confirm("⚠️ ATENÇÃO: Isso apagará todo o seu progresso da Galeria. Continuar?");
+        if (confirm1) {
+            const confirm2 = confirm("❌ TEM CERTEZA? Esta ação não pode ser desfeita.");
+            if (confirm2) {
+                localStorage.removeItem('defeatedBosses');
+                this.defeatedBosses = [];
+                this.announce("SISTEMA", "Progresso resetado com sucesso.");
+                this.togglePause();
+                location.reload();
+            }
+        }
     }
 
     openGallery() {
@@ -727,7 +823,10 @@ class Game {
     }
 
     update(delta) {
-        if (this.screenShake > 0) this.screenShake -= delta * 0.05;
+        if (this.screenShake > 0) {
+            if (!this.settings.screenShake) this.screenShake = 0;
+            else this.screenShake -= delta * 0.05;
+        }
         if (this.overlayTimer > 0) this.overlayTimer -= delta;
         else this.screenColorOverlay = null;
 
@@ -863,6 +962,13 @@ class Game {
         this.ctx.drawImage(this.bgCanvas, 0, 0);
 
         this.towers.forEach(t => {
+            if (this.settings.showAllRange || this.selectedActiveTower === t || this.towerToPlace) {
+                this.ctx.beginPath();
+                this.ctx.arc(t.x, t.y, t.range, 0, Math.PI * 2);
+                this.ctx.strokeStyle = this.selectedActiveTower === t ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.08)';
+                this.ctx.lineWidth = 1;
+                this.ctx.stroke();
+            }
             if (t.type === 'ice' || t.type === 'magic') {
                 const r = 25 + Math.sin(Date.now() / 600) * 5 + (t.level * 2); // Added level scaling
                 const g = this.ctx.createRadialGradient(t.x, t.y, 0, t.x, t.y, r);
