@@ -366,6 +366,51 @@
 
             <button class="close-evo" onclick="game.deselectTower()">×</button>
         </div>
+
+        <!-- Botão de Pausa (HUD) -->
+        <button id="pause-btn" onclick="game.togglePause()">⏸️</button>
+
+        <!-- Menu de Pausa Premium -->
+        <div id="pause-menu" class="hidden">
+            <div class="pause-frame">
+                <div class="pause-header">PAUSADO</div>
+                <div class="pause-options">
+                    <button class="menu-btn" onclick="game.togglePause()">
+                        <span class="btn-icon">▶️</span> CONTINUAR
+                    </button>
+                    <button class="menu-btn" onclick="game.toggleSettings()">
+                        <span class="btn-icon">⚙️</span> AJUSTES
+                    </button>
+                    <button class="menu-btn" onclick="game.openGallery()">
+                        <span class="btn-icon">💀</span> GALERIA DE BOSSES
+                    </button>
+                    <button class="menu-btn" onclick="location.reload()">
+                        <span class="btn-icon">🚪</span> SAIR
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Galeria de Bosses -->
+        <div id="boss-gallery" class="hidden">
+            <div class="gallery-container">
+                <div class="gallery-header">
+                    <h2>COMPÊNDIO DO VALE</h2>
+                    <button class="close-gallery" onclick="game.closeGallery()">×</button>
+                </div>
+                <div class="gallery-content">
+                    <div id="boss-list" class="boss-grid">
+                        <!-- Bosses populated via JS -->
+                    </div>
+                    <div id="boss-lore-panel" class="lore-panel">
+                        <div id="lore-icon">❓</div>
+                        <h3 id="lore-title">Selecione um Boss</h3>
+                        <p id="lore-text">Derrote os guardiões e lordes do vale para revelar suas histórias.</p>
+                        <div id="lore-stats"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Scripts -->

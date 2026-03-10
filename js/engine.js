@@ -96,6 +96,44 @@ class Game {
             100: { name: "Eternus", skill: "apocalypse_rain", desc: "Chuva de Meteoros" }
         };
 
+        this.LORE_DATA = {
+            5: "Antigas pedras de rio que ganharam vida quando o primeiro cristal de mana caiu na água. Ele não é mau, apenas confunde o castelo com uma represa que precisa ser derrubada.",
+            15: "Gárgulas esculpidas pelos antigos elfos para vigiar os céus. Com a corrupção do Vazio, elas agora caçam qualquer coisa que emita luz artificial.",
+            25: "Um antigo botânico que se fundiu com a floresta para viver para sempre. Ele acredita que o seu castelo está roubando os nutrientes do solo sagrado.",
+            35: "Habitante das cavernas de cristal profundas. Suas pinças de vidro podem cortar o próprio tecido da realidade, e ele foi atraído pelo som das suas torres.",
+            45: "A armadura de um cavaleiro que tentou defender o Vale há mil anos. Ele não sabe que a guerra acabou e continua atacando qualquer fortificação que vê.",
+            55: "Um ex-alquimista que tentou criar a poção da imortalidade, mas acabou explodindo seu laboratório. Agora ele vaga carregando barris instáveis, procurando por fogo.",
+            65: "Uma fenda viva no espaço-tempo. Ela é a personificação do medo dos soldados que um dia guardaram as rotas do norte.",
+            75: "Um inventor banido da cidade grande por criar máquinas 'vivas demais'. Ele quer provar que o vapor é superior à magia do seu castelo.",
+            85: "Criada a partir dos espelhos de um palácio destruído. Ela reflete o ódio de todos os que foram derrotados por você antes dela.",
+            95: "O porta-estandarte do exército do Vazio. Ele vem na frente para silenciar as esperanças (e as torres) antes da chegada do fim.",
+            10: "O espírito da floresta personificado. Ele despertou de um sono de mil anos irritado com o barulho dos canhões e busca silenciar o Vale com suas patas de pedra.",
+            20: "Uma criatura que se alimenta de luz. Ela quer envolver o seu castelo em uma noite eterna para que possa devorar a alma dos habitantes sem ser vista.",
+            30: "Um amálgama de todas as torres destruídas em batalhas passadas. Ele se reconstrói usando o metal dos seus próprios inimigos e quer transformar o castelo em sucata.",
+            40: "A soberana das plantas carnívoras. Ela vê os humanos como adubo de alta qualidade e planeja cobrir as muralhas do castelo com suas vinhas famintas.",
+            50: "Um verme colossal que viaja entre dimensões. Ele não quer ouro ou poder, ele quer consumir a energia rúnica que mantém o seu castelo em pé.",
+            60: "Uma infecção cósmica que tomou conta de uma montanha inteira. Ele se divide para garantir que, mesmo que o corpo principal morra, a praga continue.",
+            70: "O rei de um império esquecido que afundou no pântano. Ele ergue seus soldados mortos porque acredita que o Vale pertence, por direito, aos que vieram antes.",
+            80: "Uma força da natureza imparável nascida no coração de um vulcão. Ele é a prova de que o fogo purifica tudo, inclusive as defesas mais fortes.",
+            90: "Uma projeção da mente do universo. Ele vê a existência do seu castelo como um erro lógico que precisa ser apagado através da distorção do tempo e espaço.",
+            100: "O deus-serpente que criou o Vale. Ele decidir que a humanidade falhou em proteger a natureza e agora vem pessoalmente resetar o mundo, começando pela sua fortaleza."
+        };
+
+        this.BOSS_QUOTES = {
+            10: "O silêncio voltará a este vale...",
+            20: "A luz é um banquete para as sombras.",
+            30: "Sua própria força será sua ruína.",
+            40: "Vocês são apenas adubo para o meu jardim.",
+            50: "Sinta a fome do infinito.",
+            60: "Nós somos muitos, vocês são apenas um.",
+            70: "O Vale pertence aos que já se foram.",
+            80: "Cinzas à cinzas, pó ao pó.",
+            90: "Erro detectado. Exclusão em andamento.",
+            100: "O fim é apenas um novo começo."
+        };
+
+        this.defeatedBosses = JSON.parse(localStorage.getItem('defeatedBosses') || '[]');
+
         // Load Splash Screen (Primary JPG.PNG as found in folder)
         this.splashImg = new Image();
         this.splashImg.src = 'splash.jpg.png';
@@ -141,6 +179,10 @@ class Game {
 
         this.init();
         this.setupBackground();
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') this.togglePause();
+        });
 
         // Start title loop immediately
         this.lastTime = performance.now();
@@ -499,6 +541,8 @@ class Game {
                         if (hb) hb.classList.remove('hidden');
                         const bn = document.getElementById('boss-name');
                         if (bn) bn.innerText = data.name.toUpperCase();
+                        const quote = this.BOSS_QUOTES[this.wave];
+                        this.announce(data.name.toUpperCase(), quote || "O VALE IRÁ CAIR");
                     }
                 } else {
                     enemy = new Enemy(this.wave, this, 'normal');
@@ -602,6 +646,71 @@ class Game {
         }
     }
 
+    togglePause() {
+        if (this.gameState !== 'playing') return;
+        this.paused = !this.paused;
+        const pm = document.getElementById('pause-menu');
+        if (pm) pm.classList.toggle('hidden', !this.paused);
+        if (!this.paused) {
+            this.lastTime = performance.now();
+            this.closeGallery();
+        }
+    }
+
+    toggleSettings() {
+        this.announce("AJUSTES", "Em breve: Volume e Qualidade");
+    }
+
+    openGallery() {
+        const gallery = document.getElementById('boss-gallery');
+        if (gallery) gallery.classList.remove('hidden');
+        this.populateGallery();
+    }
+
+    closeGallery() {
+        const gallery = document.getElementById('boss-gallery');
+        if (gallery) gallery.classList.add('hidden');
+    }
+
+    populateGallery() {
+        const list = document.getElementById('boss-list');
+        if (!list) return;
+        list.innerHTML = '';
+
+        // Combine Miniboss and Boss Data for display
+        const allBossWaves = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100];
+
+        allBossWaves.forEach(w => {
+            const data = w % 10 === 0 ? this.BOSS_DATA[w] : this.MINI_BOSS_DATA[w];
+            if (!data) return;
+
+            const isDefeated = this.defeatedBosses.includes(w);
+            const item = document.createElement('div');
+            item.className = `gallery-boss-item ${isDefeated ? '' : 'locked'}`;
+            item.innerHTML = w % 10 === 0 ? '💀' : '💀'; // Can differentiate later
+            item.onclick = () => isDefeated ? this.showLore(w) : null;
+            list.appendChild(item);
+        });
+    }
+
+    showLore(wave) {
+        const data = wave % 10 === 0 ? this.BOSS_DATA[wave] : this.MINI_BOSS_DATA[wave];
+        const lore = this.LORE_DATA[wave];
+
+        document.getElementById('lore-icon').innerText = wave % 10 === 0 ? '🌋' : '🌪️';
+        document.getElementById('lore-title').innerText = data.name;
+        document.getElementById('lore-text').innerText = lore;
+        document.getElementById('lore-stats').innerHTML = `
+            <div class="lore-stat-item">CATEGORIA: <b>${wave % 10 === 0 ? 'LORDE ANCIÃO' : 'GUARDIÃO REGIONAL'}</b></div>
+            <div class="lore-stat-item">NÍVEL DE AMEAÇA: <b>${wave}</b></div>
+            <div class="lore-stat-item">HABILIDADE ÚNICA: <b>${data.desc}</b></div>
+            <div class="lore-stat-item">RECOMPENSA: <b>$${wave % 10 === 0 ? 500 : 200}+</b></div>
+        `;
+
+        document.querySelectorAll('.gallery-boss-item').forEach(i => i.classList.remove('selected'));
+        // Mark as selected would need more tracking, but this is a start
+    }
+
     loop(time) {
         // Cap delta to 64ms (around 15fps) to prevent physics glitches during lag
         const delta = Math.min(64, time - (this.lastTime || time));
@@ -678,7 +787,8 @@ class Game {
                         this.enemies.push(enemy);
                         if (isBossWave) {
                             this.activeBoss = enemy;
-                            this.announce("CHEFE CHEGOU", data.name.toUpperCase());
+                            const quote = this.BOSS_QUOTES[this.wave];
+                            this.announce(data.name.toUpperCase(), quote || "O VALE IRÁ CAIR");
                             document.getElementById('boss-health-container').classList.remove('hidden');
                             document.getElementById('boss-name').innerText = data.name.toUpperCase();
                         } else {
@@ -713,6 +823,18 @@ class Game {
                 } else {
                     this.gold += e.bounty;
                     this.updateHUD();
+
+                    if (e.isBoss || e.isMiniBoss) {
+                        if (e.waveRef && !this.defeatedBosses.includes(e.waveRef)) {
+                            this.defeatedBosses.push(e.waveRef);
+                            localStorage.setItem('defeatedBosses', JSON.stringify(this.defeatedBosses));
+                        }
+                        if (e.isBoss) {
+                            const hb = document.getElementById('boss-health-container');
+                            if (hb) hb.classList.add('hidden');
+                            this.activeBoss = null;
+                        }
+                    }
                     if (e.type === 'spawn') {
                         for (let j = 0; j < 2; j++) {
                             const sub = new Enemy(this.wave, this, 'normal');
@@ -895,6 +1017,7 @@ class Enemy {
     constructor(wave, game, type = 'normal') {
         const config = ENEMY_TYPES[type] || ENEMY_TYPES['normal'];
         this.game = game; this.type = type; this.pathIndex = 0;
+        this.waveRef = wave;
         this.x = game.path[0].x; this.y = game.path[0].y;
         this.radius = config.size * 12; this.shield = type === 'shielded' ? 5 : 0;
         this.color = config.color;
