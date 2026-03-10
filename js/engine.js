@@ -426,34 +426,65 @@ class Game {
         const progress = this.enemiesSpawned / this.enemiesInWave;
         if (progress < 0.3 || this.enemiesSpawned >= this.enemiesInWave) return;
 
-        // 1. Give gold for all enemies currently on screen
+        // 1. Award gold for enemies ALREADY on screen (and set bounty to 0)
         this.enemies.forEach(e => {
-            if (!e.dead) {
+            if (!e.dead && e.bounty > 0) {
                 this.gold += e.bounty;
-                // Visual effect: all enemies burst into gold particles
-                this.createMagicEffect('#ffd700', 5, e.x, e.y);
+                this.createMagicEffect('#ffd700', 3, e.x, e.y);
+                e.bounty = 0;
             }
         });
-        this.enemies = []; // Clear them
 
-        // 2. Calculate remaining enemies and give their gold
-        const remaining = this.enemiesInWave - this.enemiesSpawned;
-        if (remaining > 0) {
-            const baseBounty = Math.floor(ENEMY_TYPES['normal'].gold * Math.pow(1.05, this.wave - 1));
-            this.gold += (baseBounty * remaining);
+        // 2. Spawn all REMAINING enemies of the current wave at once
+        const remainingToSpawn = this.enemiesInWave - this.enemiesSpawned;
+        const isMiniBossWave = this.wave % 10 === 5;
+        const isBossWave = this.wave % 10 === 0;
+
+        for (let i = 0; i < remainingToSpawn; i++) {
+            let enemy;
+            const currentSpawnIndex = this.enemiesSpawned + i;
+            if ((isMiniBossWave || isBossWave) && currentSpawnIndex === 0) {
+                const data = isBossWave ? this.BOSS_DATA[this.wave] : this.MINI_BOSS_DATA[this.wave];
+                if (data) {
+                    enemy = new Enemy(this.wave, this, isBossWave ? 'boss' : 'miniboss');
+                    enemy.name = data.name;
+                    enemy.skillType = data.skill;
+                    if (isBossWave) {
+                        this.activeBoss = enemy;
+                        document.getElementById('boss-health-container').classList.remove('hidden');
+                        document.getElementById('boss-name').innerText = data.name.toUpperCase();
+                    }
+                } else {
+                    enemy = new Enemy(this.wave, this, 'normal');
+                }
+            } else {
+                let type = 'normal';
+                const r = Math.random();
+                if (this.wave >= 2 && r > 0.8) type = 'fast';
+                if (this.wave >= 4 && r > 0.9) type = 'tank';
+                if (this.wave >= 6 && r > 0.95) type = 'spawn';
+                if (this.wave >= 8 && r > 0.98) type = 'shielded';
+                enemy = new Enemy(this.wave, this, type);
+            }
+
+            this.gold += enemy.bounty;
+            enemy.bounty = 0;
+            enemy.x += (Math.random() - 0.5) * 40; // Cluster effect
+            this.enemies.push(enemy);
         }
 
-        // 3. Complete the spawn count
-        this.enemiesSpawned = this.enemiesInWave;
+        // 3. Complete current wave status and award completion reward
+        const reward = 100 + (this.wave * 50);
+        this.gold += reward;
 
-        if (this.activeBoss) {
-            this.activeBoss = null;
-            document.getElementById('boss-health-container').classList.add('hidden');
-        }
+        // 4. Force immediate transition to the status of the next wave
+        this.wave++;
+        this.enemiesSpawned = 0;
+        this.enemiesInWave = Math.floor(10 * Math.pow(1.15, this.wave));
 
-        this.announce("ONDA PULADA", `Você recebeu o ouro restante!`);
+        this.announce("ONDA PULADA", `Reforços inimigos chegaram!`);
         this.updateHUD();
-        this.screenShake = 10;
+        this.screenShake = 15;
     }
 
     announce(main, sub) {
