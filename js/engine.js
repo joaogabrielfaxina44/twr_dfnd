@@ -24,6 +24,34 @@ class Game {
         this.titleFadeIn = true;
         this.starting = false;
         this.lastHUDState = {};
+        this.activeBoss = null;
+
+        // --- Boss & Mini-Boss Data ---
+        this.MINI_BOSS_DATA = {
+            5: { name: "Golem de Seixo", skill: "shield_phys", desc: "Escudo Físico (50% Resist)" },
+            15: { name: "Batedor Asa-de-Mana", skill: "rage_burst", desc: "Arremetida (Velocidade 50% HP)" },
+            25: { name: "Xamã das Raízes", skill: "group_heal", desc: "Cura de Grupo" },
+            35: { name: "Caranguejo de Quartzo", skill: "reflect_shell", desc: "Carapaça Refletora" },
+            45: { name: "Fantasma de Cobre", skill: "intangible", desc: "Imunidade a Crowd Control" },
+            55: { name: "O Tropeço", skill: "explosive_charge", desc: "Carga Explosiva ao Castelo" },
+            65: { name: "Sombra Persistente", skill: "evasion_cloak", desc: "Invisibilidade Temporária" },
+            75: { name: "Mestre de Engrenagens", skill: "auto_repair", desc: "Autorreparo" },
+            85: { name: "Serpente de Vidro", skill: "glass_shard", desc: "Estilhaçar ao Morrer" },
+            95: { name: "Vanguardista do Caos", skill: "chaos_aura", desc: "Aura de Redução de Alcance" }
+        };
+
+        this.BOSS_DATA = {
+            10: { name: "Urso de Âmbar", skill: "primal_roar", desc: "Desativa torres próximas (3s)" },
+            20: { name: "Víbora das Sombras", skill: "toxic_trail", desc: "Escudo para aliados no rastro" },
+            30: { name: "Arquiteto de Sucata", skill: "scrap_devour", desc: "Devora projéteis para curar" },
+            40: { name: "Rainha das Espinas", skill: "root_entangle", desc: "Enraíza torres" },
+            50: { name: "Devorador de Éter", skill: "void_silence", desc: "Silencia habilidades Lv 5 e 7" },
+            60: { name: "Parasita do Abismo", skill: "abyss_split", desc: "Divide-se ao morrer" },
+            70: { name: "General Necro-Rúnico", skill: "necro_resurrection", desc: "Ressuscita últimos 10 inimigos" },
+            80: { name: "Behemoth de Obsidiana", skill: "obsidian_armor", desc: "Só dano crítico Lv 7" },
+            90: { name: "Avatar do Vazio", skill: "void_blink", desc: "Teletransporte (cooldown 8s)" },
+            100: { name: "Eternus", skill: "apocalypse_rain", desc: "Chuva de Meteoros" }
+        };
 
         // Load Splash Screen (Primary JPG.PNG as found in folder)
         this.splashImg = new Image();
@@ -472,13 +500,40 @@ class Game {
         if (this.enemiesSpawned < this.enemiesInWave) {
             this.spawnTimer += delta;
             if (this.spawnTimer > 1000) {
-                let type = 'normal';
-                const r = Math.random();
-                if (this.wave >= 2 && r > 0.8) type = 'fast';
-                if (this.wave >= 4 && r > 0.9) type = 'tank';
-                if (this.wave >= 6 && r > 0.95) type = 'spawn';
-                if (this.wave >= 8 && r > 0.98) type = 'shielded';
-                this.enemies.push(new Enemy(this.wave, this, type));
+                // Wave Logic: Check for Mini-Boss or Boss
+                const isMiniBossWave = this.wave % 10 === 5;
+                const isBossWave = this.wave % 10 === 0;
+
+                // Only spawn special enemy if not already spawned in this wave
+                if ((isMiniBossWave || isBossWave) && this.enemiesSpawned === 0) {
+                    const data = isBossWave ? this.BOSS_DATA[this.wave] : this.MINI_BOSS_DATA[this.wave];
+                    if (data) {
+                        const enemy = new Enemy(this.wave, this, isBossWave ? 'boss' : 'miniboss');
+                        enemy.name = data.name;
+                        enemy.skillType = data.skill;
+                        this.enemies.push(enemy);
+                        if (isBossWave) {
+                            this.activeBoss = enemy;
+                            this.announce("CHEFE CHEGOU", data.name.toUpperCase());
+                            document.getElementById('boss-health-container').classList.remove('hidden');
+                            document.getElementById('boss-name').innerText = data.name.toUpperCase();
+                        } else {
+                            this.announce("ELITE DETECTADA", data.name.toUpperCase());
+                        }
+                    } else {
+                        // Fallback generic if wave > 100 or undefined
+                        this.enemies.push(new Enemy(this.wave, this, 'normal'));
+                    }
+                } else {
+                    let type = 'normal';
+                    const r = Math.random();
+                    if (this.wave >= 2 && r > 0.8) type = 'fast';
+                    if (this.wave >= 4 && r > 0.9) type = 'tank';
+                    if (this.wave >= 6 && r > 0.95) type = 'spawn';
+                    if (this.wave >= 8 && r > 0.98) type = 'shielded';
+                    this.enemies.push(new Enemy(this.wave, this, type));
+                }
+
                 this.enemiesSpawned++;
                 this.spawnTimer = 0;
             }
@@ -647,6 +702,19 @@ class Game {
         this.ctx.font = 'bold 18px Outfit';
         this.ctx.fillText('Pressione F5 para tentar novamente', 400, 400);
     }
+
+    unlockTalentPoint() {
+        this.gold += 500; // Bonus gold for boss
+        this.announce("CHEFE DERROTADO", "Ponto de Talento Desbloqueado!");
+        this.paused = true;
+        // Logic for Talent Menu would go here
+        console.log("Talent Point Awarded. Game Paused.");
+        setTimeout(() => {
+            if (confirm("Chefe Derrotado! Deseja continuar protegendo o Vale? (Menu de Talentos Virá em Breve)")) {
+                this.paused = false;
+            }
+        }, 500);
+    }
 }
 
 class Enemy {
@@ -665,6 +733,27 @@ class Enemy {
         this.maxHp = 20 * Math.pow(1.15, wave - 1) * hpM; this.hp = this.maxHp;
         this.speed = (1.2 + Math.random() * 0.5) * spM; this.tempSpeed = this.speed;
         this.bounty = Math.floor(10 * Math.pow(1.05, wave - 1));
+
+        // --- Special Hierarchies ---
+        this.isBoss = type === 'boss';
+        this.isMiniBoss = type === 'miniboss';
+        this.scale = this.isBoss ? 3.5 : (this.isMiniBoss ? 2.0 : 1.0);
+
+        if (this.isMiniBoss) {
+            this.maxHp *= 2.5;
+            this.hp = this.maxHp;
+            this.radius *= 1.5;
+            this.bounty *= 5;
+            this.color = '#ffa500'; // Orange Elite
+        } else if (this.isBoss) {
+            this.maxHp *= 8.0; // Bosses are true sponges
+            this.hp = this.maxHp;
+            this.radius *= 2.5;
+            this.bounty *= 20;
+            this.color = '#ff0000'; // Red Boss
+            this.speed *= 0.6; // Slower but imponent
+        }
+
         this.slowT = 0; this.burnT = 0; this.burnD = 0; this.poisonT = 0; this.poisonD = 0;
         this.armorReduction = 1.0; // 1.0 = normal, 0.75 = 25% reduction (more damage)
         this.damageTakenMult = 1.0; // bonus damage from all sources
@@ -676,12 +765,49 @@ class Enemy {
     update(delta) {
         if (this.stunT > 0) { this.stunT -= delta; return; }
         if (this.slowT > 0) { this.slowT -= delta; if (this.slowT <= 0) { this.tempSpeed = this.speed; this.damageTakenMult = 1.0; } }
+
+        // --- Boss Screen Shake ---
+        if (this.isBoss) {
+            this.stepCounter = (this.stepCounter || 0) + delta;
+            if (this.stepCounter > 800) {
+                this.game.screenShake = 5;
+                this.stepCounter = 0;
+            }
+            // Update UI Health Bar
+            if (this.game.activeBoss === this) {
+                const fill = document.getElementById('boss-hp-fill');
+                if (fill) fill.style.width = (this.hp / this.maxHp * 100) + '%';
+            }
+        }
+
         this.lastT += delta;
         if (this.lastT >= 1000) {
+            // Regeneration / Auto-repair
+            if (this.skillType === 'auto_repair' && this.lastT >= 3000) {
+                this.hp = Math.min(this.maxHp, this.hp + (this.maxHp * 0.05));
+            }
             if (this.burnT > 0) { this.takeDamage(this.burnD, true); this.burnT--; }
             if (this.poisonT > 0) { this.takeDamage(this.poisonD, true); this.poisonT--; }
             this.lastT = 0;
+
+            // Interval Skills
+            if (this.skillType === 'group_heal') {
+                this.game.enemies.forEach(e => {
+                    if (e !== this && Math.sqrt((e.x - this.x) ** 2 + (e.y - this.y) ** 2) < 100) {
+                        e.hp = Math.min(e.maxHp, e.hp + 20);
+                        this.game.particles.push({ x: e.x, y: e.y, color: '#4caf50', life: 50, size: 2 });
+                    }
+                });
+            }
         }
+
+        // HP Threshold Skills
+        if (this.skillType === 'rage_burst' && this.hp < this.maxHp * 0.5 && !this.raged) {
+            this.tempSpeed *= 1.8;
+            this.raged = true;
+            this.game.announce("FÚRIA!", "Velocidade Aumentada!");
+        }
+
         const target = this.game.path[this.pathIndex + 1];
         if (!target) { this.dead = true; this.reachedEnd = true; return; }
         const dx = target.x - this.x, dy = target.y - this.y, d = Math.sqrt(dx * dx + dy * dy);
@@ -693,14 +819,57 @@ class Enemy {
     }
     takeDamage(dmg, ignoreS = false) {
         if (!ignoreS && this.shield > 0) { this.shield--; return; }
-        const finalDmg = dmg * this.damageTakenMult * (1 / this.armorReduction);
+
+        // Skill: Shield Physical
+        let finalDmg = dmg;
+        if (this.skillType === 'shield_phys') finalDmg *= 0.5;
+
+        // Skill: Obsidian Armor
+        if (this.skillType === 'obsidian_armor') {
+            // Simpler check: only take real damage if it's very high (proxy for crit/lvl 7)
+            if (finalDmg < 100) finalDmg = 1;
+        }
+
+        finalDmg *= this.damageTakenMult * (1 / this.armorReduction);
         this.hp -= finalDmg;
         this.hitFlash = 100;
+
+        // Skill: Reflect Shell
+        if (this.skillType === 'reflect_shell' && Math.random() < 0.1) {
+            this.game.screenColorOverlay = 'rgba(255,255,255,0.2)';
+            this.game.overlayTimer = 100;
+        }
+
         if (this.hp <= 0) this.die();
     }
     die() {
         if (this.dead) return;
         this.dead = true;
+
+        if (this.isBoss) {
+            this.game.activeBoss = null;
+            document.getElementById('boss-health-container').classList.add('hidden');
+            this.game.unlockTalentPoint();
+        }
+
+        if (this.skillType === 'glass_shard') {
+            for (let i = 0; i < 4; i++) {
+                const sub = new Enemy(this.game.wave, this.game, 'fast');
+                sub.x = this.x; sub.y = this.y; sub.pathIndex = this.pathIndex;
+                sub.maxHp *= 0.3; sub.hp = sub.maxHp;
+                this.game.enemies.push(sub);
+            }
+        }
+
+        if (this.skillType === 'abyss_split') {
+            for (let i = 0; i < 3; i++) {
+                const sub = new Enemy(this.game.wave, this.game, 'miniboss');
+                sub.x = this.x; sub.y = this.y; sub.pathIndex = this.pathIndex;
+                sub.maxHp *= 0.5; sub.hp = sub.maxHp;
+                this.game.enemies.push(sub);
+            }
+        }
+
         if (this.viralMarker && !this.reachedEnd) {
             // Contágio Viral Level 7
             this.game.createMagicEffect('#4caf50', 15, this.x, this.y);
@@ -723,6 +892,7 @@ class Enemy {
     }
     draw(ctx) {
         ctx.save(); ctx.translate(this.x, this.y);
+        ctx.scale(this.scale, this.scale);
 
         // Damage Flash Effect
         if (this.hitFlash > 0) {
