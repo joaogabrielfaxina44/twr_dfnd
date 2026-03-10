@@ -185,7 +185,10 @@
 
         <!-- Painel de UI lateral -->
         <aside id="ui-panel">
-            <h1 style="font-size: 1.2rem; margin-bottom: 10px; color: var(--accent);">ULTRA DEFENDERS</h1>
+            <div class="hud-item title-container">
+                <button id="pause-btn" onclick="game.togglePause()">⏸️</button>
+                <h1 style="font-size: 1.2rem; margin: 0; color: var(--accent);">ULTRA DEFENDERS</h1>
+            </div>
 
             <section class="hud-item" id="hud-gold">
                 <div>
@@ -367,8 +370,6 @@
             <button class="close-evo" onclick="game.deselectTower()">×</button>
         </div>
 
-        <!-- Botão de Pausa (HUD) -->
-        <button id="pause-btn" onclick="game.togglePause()">⏸️</button>
 
         <!-- Menu de Pausa Premium -->
         <div id="pause-menu" class="hidden">
