@@ -125,6 +125,58 @@ class Game {
             poison: { cost: 250, name: "Lab. de Peste", icon: "🧪", color: "#32cd32", range: 140, baseDmg: 16 }
         };
 
+        // --- Image Support ---
+        this.images = {};
+        this.spriteConfigs = { enemies: {}, towers: {}, projectiles: {} };
+        
+        this.loadImage = function(category, type, src, maxFrames = 1, speed = 120, drawScale = 1.0) {
+            const img = new Image();
+            img.src = src;
+            img.crossOrigin = "Anonymous"; // Safety for dataURL
+            img.onload = () => {
+                const c = document.createElement('canvas');
+                c.width = img.width; c.height = img.height;
+                const ctx = c.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                const imgData = ctx.getImageData(0, 0, c.width, c.height);
+                const data = imgData.data;
+                for (let i = 0; i < data.length; i += 4) {
+                    if (data[i] > 240 && data[i+1] > 240 && data[i+2] > 240) {
+                        data[i+3] = 0; // Make transparent
+                    }
+                }
+                ctx.putImageData(imgData, 0, 0);
+                const transparentImg = new Image();
+                transparentImg.src = c.toDataURL();
+                transparentImg.onload = () => { this.images[type] = transparentImg; };
+            };
+            this.images[type] = img; // Temporary fallback
+            this.spriteConfigs[category][type] = { maxFrames, speed, drawScale };
+        }.bind(this);
+
+        // --- Load Initial Assets ---
+        this.loadImage('enemies', 'normal', 'assets/enemies/normal.png', 1, 120, 1.2);
+        this.loadImage('enemies', 'fast', 'assets/enemies/fast.png', 1, 120, 1.2);
+        this.loadImage('enemies', 'tank', 'assets/enemies/tank.png', 1, 120, 1.3);
+        this.loadImage('enemies', 'spawn', 'assets/enemies/spawn.png', 1, 120, 1.3);
+
+        // --- Subchefes (MiniBosses) ---
+        this.loadImage('enemies', 'shield_phys', 'assets/enemies/golem.png', 1, 120, 1.6);
+        this.loadImage('enemies', 'rage_burst', 'assets/enemies/batedor.png', 1, 120, 1.6);
+        this.loadImage('enemies', 'group_heal', 'assets/enemies/xama.png', 1, 120, 1.6);
+        this.loadImage('enemies', 'reflect_shell', 'assets/enemies/caranguejo.png', 1, 120, 1.6);
+        this.loadImage('enemies', 'intangible', 'assets/enemies/fantasma.png', 1, 120, 1.6);
+        this.loadImage('enemies', 'explosive_charge', 'assets/enemies/o_tropeco.png', 1, 120, 1.6);
+        this.loadImage('enemies', 'evasion_cloak', 'assets/enemies/sombra.png', 1, 120, 1.6);
+        this.loadImage('enemies', 'auto_repair', 'assets/enemies/mestre.png', 1, 120, 1.6);
+        this.loadImage('enemies', 'glass_shard', 'assets/enemies/serpente.png', 1, 120, 1.6);
+        this.loadImage('enemies', 'chaos_aura', 'assets/enemies/vanguardista.png', 1, 120, 1.6);
+
+        // --- Chefões (Bosses) ---
+        this.loadImage('enemies', 'primal_roar', 'assets/enemies/urso.png', 1, 120, 2.5);
+        this.loadImage('enemies', 'toxic_trail', 'assets/enemies/vibora.png', 1, 120, 2.5);
+        this.loadImage('enemies', 'scrap_devour', 'assets/enemies/arquiteto.png', 1, 120, 2.5);
+
         this.init();
         this.setupBackground();
 
@@ -1031,14 +1083,34 @@ class Enemy {
         ctx.ellipse(0, 10, this.radius * 0.8, this.radius * 0.3, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = this.color;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = this.color;
-        ctx.font = `${this.size * 1.5}px serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(this.icon, 0, 0);
-        ctx.shadowBlur = 0;
+        const img = this.game.images[this.skillType] || this.game.images[this.type];
+        if (img && img.complete && img.width > 0) {
+            const spriteKey = this.game.images[this.skillType] ? this.skillType : this.type;
+            const config = this.game.spriteConfigs.enemies[spriteKey] || { maxFrames: 1, speed: 120, drawScale: 1.0 };
+            const frameW = img.width / config.maxFrames;
+            const frameH = img.height;
+            
+            this.frameTimer = (this.frameTimer || 0) + 16;
+            const frame = Math.floor(this.frameTimer / config.speed) % config.maxFrames;
+
+            const drawScale = config.drawScale || 1.0;
+            const drawSize = this.radius * 2 * drawScale;
+
+            ctx.drawImage(
+                img,
+                frame * frameW, 0, frameW, frameH,
+                -drawSize / 2, -drawSize / 2, drawSize, drawSize
+            );
+        } else {
+            ctx.fillStyle = this.color;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = this.color;
+            ctx.font = `${this.size * 1.5}px serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(this.icon, 0, 0);
+            ctx.shadowBlur = 0;
+        }
 
         ctx.restore();
 
@@ -1152,6 +1224,19 @@ class Tower {
         const time = Date.now();
         const float = Math.sin(time / 400) * 3;
         const level = this.level;
+
+        const img = this.game.images[this.type];
+        if (img && img.complete && img.width > 0) {
+            const config = this.game.spriteConfigs.towers[this.type] || { maxFrames: 1, speed: 120 };
+            const frameW = img.width / config.maxFrames;
+            const frameH = img.height;
+            const frame = Math.floor(time / config.speed) % config.maxFrames;
+
+            ctx.drawImage(img, frame * frameW, 0, frameW, frameH, -25, -35, 50, 60);
+            ctx.restore();
+            ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Outfit'; ctx.textAlign = 'center'; ctx.fillText(`LVL ${this.level}`, this.x, this.y + 28);
+            return; // Skip standard draw
+        }
 
         // Base de Pedra - Evolui com o nível
         ctx.fillStyle = level >= 7 ? '#4527a0' : (level >= 3 ? '#546e7a' : '#37474f');
